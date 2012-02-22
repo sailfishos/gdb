@@ -1,0 +1,43 @@
+Name: gdb
+Summary: A GNU source-level debugger for C, C++, Java and other languages
+Version: 7.4
+Release: 1
+Group: Development/Debuggers
+License: GPLv3+
+URL: http://gnu.org/software/gdb/
+Sources:
+    - ftp://ftp.gnu.org/gnu/gdb/gdb-%{version}.tar.bz2
+    - gdb-rpmlintrc
+Description: |
+    GDB, the GNU debugger, allows you to debug programs written in C, C++,
+    Java, and other languages, by executing them in a controlled fashion
+    and printing their data.
+
+RequiresPreUn:
+    - /sbin/install-info
+RequiresPost:
+    - /sbin/install-info
+PkgConfigBR:
+    - ncurses
+PkgBR:
+    - texinfo
+    - gettext
+    - flex
+    - bison
+    - expat-devel
+    - python-devel
+    - libstdc++
+Configure: none
+Builder: make
+Check: yes
+SubPackages:
+    - Name: gdbserver
+      Summary: A standalone server for GDB (the GNU source-level debugger)
+      Group: Development/Debuggers
+      Description: |
+          GDB, the GNU debugger, allows you to debug programs written in C, C++,
+          Java, and other languages, by executing them in a controlled fashion
+          and printing their data.
+          
+          This package provides a program that allows you to run GDB on a different machine than the one which is running the program being debugged.
+
