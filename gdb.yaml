@@ -1,6 +1,6 @@
 Name: gdb
 Summary: A GNU source-level debugger for C, C++, Java and other languages
-Version: 7.4
+Version: 7.5
 Release: 1
 Group: Development/Debuggers
 License: GPLv3+
@@ -13,10 +13,6 @@ Description: |
     Java, and other languages, by executing them in a controlled fashion
     and printing their data.
 
-RequiresPreUn:
-    - /sbin/install-info
-RequiresPost:
-    - /sbin/install-info
 PkgConfigBR:
     - ncurses
 PkgBR:

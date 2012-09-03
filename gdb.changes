@@ -1,3 +1,6 @@
+* Mon Sep 03 2012 Marko Saukko <marko.saukko@jollamobile.com> - 7.5
+- Update to version 7.5
+
 * Tue Feb 21 2012 Marko Saukko <marko.saukko@gmail.com> - 7.4
 - Update to version 7.4
 - Build without system readline as that would need update to 
