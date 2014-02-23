@@ -2,7 +2,7 @@ Name: cross-i486-gdb
 %define crosstarget i486-meego-linux-gnu
 
 # >> macros
-%define gdb_src gdb-%{version}/gdb
+%define gdb_src %{name}-%{version}/gdb
 %define gdb_build build-%{_target_platform}
 %if "%{?crosstarget}" != ""
 %define _prefix /opt/cross
@@ -16,7 +16,7 @@ Release:    1
 Group:      Development/Debuggers
 License:    GPLv3+
 URL:        http://gnu.org/software/gdb/
-Source0:    ftp://ftp.gnu.org/gnu/gdb/gdb-%{version}.tar.bz2
+Source0:    ftp://ftp.gnu.org/gnu/gdb/%{name}-%{version}.tar.bz2
 Source1:    gdb-rpmlintrc
 Source2:    precheckin.sh
 
@@ -71,7 +71,7 @@ This package provides a program that allows you to run GDB on a different machin
 %endif
 
 %prep
-%setup -q -n gdb-%{version}/gdb
+%setup -q -n %{name}-%{version}/gdb
 %patch0 -p1
 %patch1 -p1
 %patch2 -p1
