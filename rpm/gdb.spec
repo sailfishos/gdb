@@ -56,7 +56,6 @@ and printing their data.
 %package gdbserver
 Summary:    A standalone server for GDB (the GNU source-level debugger)
 Group:      Development/Debuggers
-Requires:   %{name} = %{version}-%{release}
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 
