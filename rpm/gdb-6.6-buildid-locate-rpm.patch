@@ -2,10 +2,11 @@ Index: gdb-7.4.50.20120602/gdb/event-top.c
 ===================================================================
 --- gdb-7.4.50.20120602.orig/gdb/event-top.c	2012-06-02 21:08:08.651227347 +0200
 +++ gdb-7.4.50.20120602/gdb/event-top.c	2012-06-02 21:08:23.479221885 +0200
-@@ -36,6 +36,7 @@
+@@ -36,7 +36,8 @@
  #include "observer.h"
  #include "continuations.h"
  #include "gdbcmd.h"		/* for dont_repeat() */
+ #include "annotate.h"
 +#include "symfile.h"
  
  /* readline include files.  */
@@ -40,7 +41,7 @@ Index: gdb-7.4.50.20120602/gdb/elfread.c
  #include <sys/stat.h>
  
  extern void _initialize_elfread (void);
-@@ -1647,8 +1648,361 @@ build_id_to_filename (struct build_id *b
+@@ -1647,8 +1648,361 @@ build_id_to_filename (struct elf_build_id *b
    return retval;
  }
  
@@ -430,17 +431,17 @@ Index: gdb-7.4.50.20120602/gdb/elfread.c
 +#ifdef HAVE_LIBRPM
 +  if (missing_exec == MISSING_EXEC_NOT_TRIED)
 +    {
-+      char *exec_filename;
++      char *missing_exec_filename;
  
 -  fprintf_unfiltered (gdb_stdlog,
 -		      _("Missing separate debuginfo for %s\n"), binary);
 -  if (debug != NULL)
 -    fprintf_unfiltered (gdb_stdlog, _("Try to install the hash file %s\n"),
 -			debug);
-+      exec_filename = get_exec_file (0);
-+      if (exec_filename != NULL)
++      missing_exec_filename = get_exec_file (0);
++      if (missing_exec_filename != NULL)
 +	{
-+	  if (missing_rpm_enlist (exec_filename) == 0)
++	  if (missing_rpm_enlist (missing_exec_filename) == 0)
 +	    missing_exec = MISSING_EXEC_NOT_FOUND;
 +	  else
 +	    missing_exec = MISSING_EXEC_ENLISTED;
@@ -468,8 +469,8 @@ Index: gdb-7.4.50.20120602/gdb/symfile.h
 ===================================================================
 --- gdb-7.4.50.20120602.orig/gdb/symfile.h	2012-06-02 21:08:08.651227347 +0200
 +++ gdb-7.4.50.20120602/gdb/symfile.h	2012-06-02 21:08:23.499221877 +0200
-@@ -621,6 +621,8 @@ extern struct build_id *build_id_addr_ge
- extern char *build_id_to_filename (struct build_id *build_id,
+@@ -621,6 +621,8 @@ extern struct elf_build_id *build_id_addr_ge
+ extern char *build_id_to_filename (struct elf_build_id *build_id,
  				   char **link_return, int add_debug_suffix);
  extern void debug_print_missing (const char *binary, const char *debug);
 +extern void debug_flush_missing (void);

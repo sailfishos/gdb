@@ -2,7 +2,7 @@ Name: cross-i486-gdb
 %define crosstarget i486-meego-linux-gnu
 
 # >> macros
-%define gdb_src %{name}-%{version}/gdb
+%define gdb_src %{name}-%{version}/upstream
 %define gdb_build build-%{_target_platform}
 %if "%{?crosstarget}" != ""
 %define _prefix /opt/cross
@@ -11,7 +11,7 @@ Name: cross-i486-gdb
 # << macros
 
 Summary:    A GNU source-level debugger for C, C++, Java and other languages
-Version:    7.5.1
+Version:    7.6.2
 Release:    1
 Group:      Development/Debuggers
 License:    GPLv3+
@@ -57,7 +57,6 @@ and printing their data.
 %package gdbserver
 Summary:    A standalone server for GDB (the GNU source-level debugger)
 Group:      Development/Debuggers
-Requires:   %{name} = %{version}-%{release}
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 
@@ -71,8 +70,9 @@ This package provides a program that allows you to run GDB on a different machin
 %endif
 
 %prep
-%setup -q -n %{name}-%{version}/gdb
-%patch0 -p1
+%setup -q -n %{name}-%{version}/upstream
+# The archer patch is a rather large rebase. It doesn't seem to be necessary so we'll disable it.
+#%patch0 -p1
 %patch1 -p1
 %patch2 -p1
 %patch3 -p1
@@ -140,22 +140,18 @@ export CFLAGS="$RPM_OPT_FLAGS"
 
 make %{?jobs:-j%jobs}
 
-# >> build post
 make %{?_smp_mflags} info
 
 # Copy the <sourcetree>/gdb/NEWS file to the directory above it.
 cp $RPM_BUILD_DIR/%{gdb_src}/gdb/NEWS $RPM_BUILD_DIR/%{gdb_src}
-# << build post
 
 %install
 rm -rf %{buildroot}
-# >> install pre
 # Initially we're in the %{gdb_src} directory.
 cd %{gdb_build}
-# << install pre
+
 %make_install
 
-# >> install post
 # install the gcore script in /usr/bin
 %if "%{?crosstarget}" == ""
 cp $RPM_BUILD_DIR/%{gdb_src}/gdb/gdb_gcore.sh $RPM_BUILD_ROOT%{_bindir}/gcore
@@ -174,14 +170,11 @@ rm -f $RPM_BUILD_ROOT%{_infodir}/configure*
 rm -rf $RPM_BUILD_ROOT%{_includedir}
 rm -rf $RPM_BUILD_ROOT/%{_libdir}/lib{bfd*,opcodes*,iberty*,mmalloc*}
 rm -f $RPM_BUILD_ROOT%{_infodir}/dir
-# << install post
 
 
 %check
-# >> check
 # Initially we're in the %{gdb_src} directory.
 cd %{gdb_build}
-# << check
 
 %if "%{?crosstarget}" == ""
 %post
@@ -206,7 +199,6 @@ fi
 
 %files
 %defattr(-,root,root,-)
-# >> files
 %doc COPYING COPYING.LIB README NEWS
 %{_bindir}/gcore
 %{_bindir}/gdb
@@ -216,17 +208,14 @@ fi
 %{_infodir}/gdb.info.gz
 %{_infodir}/gdbint.info.gz
 %{_infodir}/stabs.info.gz
-# << files
 
 %files gdbserver
 %defattr(-,root,root,-)
-# >> files gdbserver
 %{_bindir}/gdbserver
 %{_mandir}/*/gdbserver.1*
 %ifarch %{ix86} x86_64
 %{_libdir}/libinproctrace.so
 %endif
-# << files gdbserver
 %else
 %files
 %defattr(-,root,root,-)
