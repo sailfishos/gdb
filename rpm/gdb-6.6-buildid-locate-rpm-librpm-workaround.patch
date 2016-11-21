@@ -2,7 +2,7 @@ Index: gdb-7.4.50.20120602/gdb/elfread.c
 ===================================================================
 --- gdb-7.4.50.20120602.orig/gdb/elfread.c	2012-06-02 21:35:09.669510757 +0200
 +++ gdb-7.4.50.20120602/gdb/elfread.c	2012-06-02 21:35:31.106502660 +0200
-@@ -1658,6 +1658,19 @@ build_id_to_filename (struct build_id *b
+@@ -1658,6 +1658,19 @@ build_id_to_filename (struct elf_build_id *b
  #include <dlfcn.h>
  #endif
  

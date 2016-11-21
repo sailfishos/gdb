@@ -11,7 +11,7 @@ Name: cross-mipsel-gdb
 # << macros
 
 Summary:    A GNU source-level debugger for C, C++, Java and other languages
-Version:    7.5.1
+Version:    7.6.2
 Release:    1
 Group:      Development/Debuggers
 License:    GPLv3+
@@ -71,7 +71,8 @@ This package provides a program that allows you to run GDB on a different machin
 
 %prep
 %setup -q -n %{name}-%{version}/upstream
-%patch0 -p1
+# The archer patch is a rather large rebase. It doesn't seem to be necessary so we'll disable it.
+#%patch0 -p1
 %patch1 -p1
 %patch2 -p1
 %patch3 -p1

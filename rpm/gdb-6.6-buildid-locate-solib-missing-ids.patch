@@ -4,8 +4,8 @@
  	}
  
        {
--	struct build_id *build_id;
-+	struct build_id *build_id = NULL;
+-	struct elf_build_id *build_id;
++	struct elf_build_id *build_id = NULL;
  
  	strncpy (new->so_original_name, buffer, SO_NAME_MAX_PATH_SIZE - 1);
  	new->so_original_name[SO_NAME_MAX_PATH_SIZE - 1] = '\0';

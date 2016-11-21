@@ -2,7 +2,7 @@ Index: gdb-7.4.91.20120801/gdb/corelow.c
 ===================================================================
 --- gdb-7.4.91.20120801.orig/gdb/corelow.c	2012-08-01 18:36:51.000000000 +0200
 +++ gdb-7.4.91.20120801/gdb/corelow.c	2012-08-01 18:37:44.584925750 +0200
-@@ -47,6 +47,9 @@
+@@ -46,6 +46,9 @@
  #include "progspace.h"
  #include "objfiles.h"
  #include "gdb_bfd.h"
@@ -12,7 +12,7 @@ Index: gdb-7.4.91.20120801/gdb/corelow.c
  
  #ifndef O_LARGEFILE
  #define O_LARGEFILE 0
-@@ -274,6 +277,52 @@ add_to_thread_list (bfd *abfd, asection
+@@ -271,6 +274,52 @@ add_to_thread_list (bfd *abfd, asection
      inferior_ptid = ptid;			/* Yes, make it current.  */
  }
  
@@ -22,8 +22,8 @@ Index: gdb-7.4.91.20120801/gdb/corelow.c
 +build_id_locate_exec (int from_tty)
 +{
 +  CORE_ADDR at_entry;
-+  struct build_id *build_id;
-+  char *exec_filename, *debug_filename;
++  struct elf_build_id *build_id;
++  char *build_id_exec_filename, *debug_filename;
 +  char *build_id_filename;
 +  struct cleanup *back_to;
 +
@@ -43,14 +43,14 @@ Index: gdb-7.4.91.20120801/gdb/corelow.c
 +     file - such .eh_frame would not be found if SYMFILE_OBJFILE would refer
 +     directly to the separate debug info file.  */
 +
-+  exec_filename = build_id_to_filename (build_id, &build_id_filename, 0);
++  build_id_exec_filename = build_id_to_filename (build_id, &build_id_filename, 0);
 +  back_to = make_cleanup (xfree, build_id_filename);
 +
-+  if (exec_filename != NULL)
++  if (build_id_exec_filename != NULL)
 +    {
-+      make_cleanup (xfree, exec_filename);
-+      exec_file_attach (exec_filename, from_tty);
-+      symbol_file_add_main (exec_filename, from_tty);
++      make_cleanup (xfree, build_id_exec_filename);
++      exec_file_attach (build_id_exec_filename, from_tty);
++      symbol_file_add_main (build_id_exec_filename, from_tty);
 +      if (symfile_objfile != NULL)
 +        symfile_objfile->flags |= OBJF_BUILD_ID_CORE_LOADED;
 +    }
@@ -65,7 +65,7 @@ Index: gdb-7.4.91.20120801/gdb/corelow.c
  /* This routine opens and sets up the core file bfd.  */
  
  static void
-@@ -418,6 +467,14 @@ core_open (char *filename, int from_tty)
+@@ -409,6 +458,14 @@ core_open (char *filename, int from_tty)
  	switch_to_thread (thread->ptid);
      }
  
@@ -80,7 +80,7 @@ Index: gdb-7.4.91.20120801/gdb/corelow.c
    post_create_inferior (&core_ops, from_tty);
  
    /* Now go through the target stack looking for threads since there
-@@ -939,4 +996,11 @@ _initialize_corelow (void)
+@@ -978,4 +1035,11 @@ _initialize_corelow (void)
    init_core_ops ();
  
    add_target (&core_ops);
@@ -96,7 +96,7 @@ Index: gdb-7.4.91.20120801/gdb/doc/gdb.texinfo
 ===================================================================
 --- gdb-7.4.91.20120801.orig/gdb/doc/gdb.texinfo	2012-08-01 18:36:51.000000000 +0200
 +++ gdb-7.4.91.20120801/gdb/doc/gdb.texinfo	2012-08-01 18:37:44.598925672 +0200
-@@ -16530,6 +16530,27 @@ information files.
+@@ -16810,6 +16810,27 @@ information files.
  
  @end table
  
@@ -128,7 +128,7 @@ Index: gdb-7.4.91.20120801/gdb/solib-svr4.c
 ===================================================================
 --- gdb-7.4.91.20120801.orig/gdb/solib-svr4.c	2012-08-01 18:36:51.000000000 +0200
 +++ gdb-7.4.91.20120801/gdb/solib-svr4.c	2012-08-01 18:37:44.599925667 +0200
-@@ -1228,9 +1228,52 @@ svr4_read_so_list (CORE_ADDR lm, struct
+@@ -1224,9 +1224,52 @@ svr4_read_so_list (CORE_ADDR lm, struct
  	  continue;
  	}
  
@@ -136,7 +136,7 @@ Index: gdb-7.4.91.20120801/gdb/solib-svr4.c
 -      new->so_name[SO_NAME_MAX_PATH_SIZE - 1] = '\0';
 -      strcpy (new->so_original_name, new->so_name);
 +      {
-+	struct build_id *build_id;
++	struct elf_build_id *build_id;
 +
 +	strncpy (new->so_original_name, buffer, SO_NAME_MAX_PATH_SIZE - 1);
 +	new->so_original_name[SO_NAME_MAX_PATH_SIZE - 1] = '\0';
@@ -200,7 +200,7 @@ Index: gdb-7.4.91.20120801/gdb/elfread.c
  
  extern void _initialize_elfread (void);
  
-@@ -1074,16 +1079,65 @@ elf_gnu_ifunc_resolver_return_stop (stru
+@@ -1068,10 +1073,59 @@ elf_gnu_ifunc_resolver_return_stop (stru
    update_breakpoint_locations (b, sals, sals_end);
  }
  
@@ -216,17 +216,11 @@ Index: gdb-7.4.91.20120801/gdb/elfread.c
 +		    value);
 +}
 +
- struct build_id
-   {
-     size_t size;
-     gdb_byte data[1];
-   };
- 
 -/* Locate NT_GNU_BUILD_ID from ABFD and return its content.  */
 +/* Locate NT_GNU_BUILD_ID and return its matching debug filename.
 +   FIXME: NOTE decoding should be unified with the BFD core notes decoding.  */
  
- static struct build_id *
+ static const struct elf_build_id *
 -build_id_bfd_get (bfd *abfd)
 +build_id_buf_get (bfd *templ, gdb_byte *buf, bfd_size_type size)
 +{
@@ -247,7 +241,7 @@ Index: gdb-7.4.91.20120801/gdb/elfread.c
 +	{
 +	  size_t size = descsz;
 +	  gdb_byte *data = (void *) descdata;
-+	  struct build_id *retval;
++	  struct elf_build_id *retval;
 +
 +	  retval = xmalloc (sizeof *retval - 1 + size);
 +	  retval->size = size;
@@ -263,10 +257,10 @@ Index: gdb-7.4.91.20120801/gdb/elfread.c
 +/* Separate debuginfo files have corrupted PHDR but SHDR is correct there.
 +   Locate NT_GNU_BUILD_ID from ABFD and return its content.  */
 +
-+static struct build_id *
++static const struct elf_build_id *
 +build_id_bfd_shdr_get (bfd *abfd)
  {
-   struct build_id *retval;
+   if (!bfd_check_format (abfd, bfd_object)
  
 @@ -1099,6 +1153,348 @@ build_id_bfd_get (bfd *abfd)
    return retval;
@@ -276,12 +270,12 @@ Index: gdb-7.4.91.20120801/gdb/elfread.c
 +   bfd_elf_bfd_from_remote_memory () has too much overhead by
 +   allocating/reading all the available ELF PT_LOADs.  */
 +
-+static struct build_id *
++static struct elf_build_id *
 +build_id_phdr_get (bfd *templ, bfd_vma loadbase, unsigned e_phnum,
 +		   Elf_Internal_Phdr *i_phdr)
 +{
 +  int i;
-+  struct build_id *retval = NULL;
++  struct elf_build_id *retval = NULL;
 +
 +  for (i = 0; i < e_phnum; i++)
 +    if (i_phdr[i].p_type == PT_NOTE && i_phdr[i].p_filesz > 0)
@@ -568,11 +562,11 @@ Index: gdb-7.4.91.20120801/gdb/elfread.c
 +    }
 +}
 +
-+struct build_id *
++struct elf_build_id *
 +build_id_addr_get (CORE_ADDR addr)
 +{
 +  struct build_id_addr_sect *candidate;
-+  struct build_id *retval = NULL;
++  struct elf_build_id *retval = NULL;
 +  Elf_Internal_Phdr *i_phdr = NULL;
 +  bfd_vma loadbase = 0;
 +  unsigned e_phnum = 0;
@@ -631,9 +625,9 @@ Index: gdb-7.4.91.20120801/gdb/elfread.c
  }
  
 -static char *
--build_id_to_debug_filename (struct build_id *build_id)
+-build_id_to_debug_filename (const struct elf_build_id *build_id)
 +char *
-+build_id_to_filename (struct build_id *build_id, char **link_return,
++build_id_to_filename (struct elf_build_id *build_id, char **link_return,
 +		      int add_debug_suffix)
  {
    char *link, *debugdir, *retval = NULL;
@@ -658,7 +652,7 @@ Index: gdb-7.4.91.20120801/gdb/elfread.c
        char *s;
  
        memcpy (link, debugdir, debugdir_len);
-@@ -1168,37 +1567,240 @@ build_id_to_debug_filename (struct build
+@@ -1168,36 +1567,239 @@ build_id_to_debug_filename (struct build
  	*s++ = '/';
        while (size-- > 0)
  	s += sprintf (s, "%02x", (unsigned) *data++);
@@ -893,7 +887,7 @@ Index: gdb-7.4.91.20120801/gdb/elfread.c
 +find_separate_debug_file_by_buildid (struct objfile *objfile,
 +				     char **build_id_filename_return)
  {
-   struct build_id *build_id;
+   const struct elf_build_id *build_id;
  
 -  build_id = build_id_bfd_get (objfile->obfd);
 +  if (build_id_filename_return)
@@ -907,7 +901,6 @@ Index: gdb-7.4.91.20120801/gdb/elfread.c
 -      build_id_name = build_id_to_debug_filename (build_id);
 +      build_id_name = build_id_to_filename (build_id, build_id_filename_return,
 +					    1);
-       xfree (build_id);
        /* Prevent looping on a stripped .debug file.  */
        if (build_id_name != NULL
 @@ -1209,7 +1811,7 @@ find_separate_debug_file_by_buildid (str
@@ -972,8 +965,8 @@ Index: gdb-7.4.91.20120801/gdb/symfile.h
  
 +/* build-id support.  */
 +struct build_id;
-+extern struct build_id *build_id_addr_get (CORE_ADDR addr);
-+extern char *build_id_to_filename (struct build_id *build_id,
++extern struct elf_build_id *build_id_addr_get (CORE_ADDR addr);
++extern char *build_id_to_filename (struct elf_build_id *build_id,
 +				   char **link_return, int add_debug_suffix);
 +extern void debug_print_missing (const char *binary, const char *debug);
 +
