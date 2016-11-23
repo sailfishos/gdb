@@ -1,5 +1,5 @@
-Name: cross-i486-gdb
-%define crosstarget i486-meego-linux-gnu
+Name: cross-aarch64-gdb
+%define crosstarget aarch64-meego-linux-gnu
 
 # >> macros
 %if "%{?crosstarget}" != ""
