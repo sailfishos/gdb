@@ -2,8 +2,6 @@ Name: cross-x86_64-gdb
 %define crosstarget x86_64-meego-linux-gnu
 
 # >> macros
-%define gdb_src %{name}-%{version}/upstream
-%define gdb_build build-%{_target_platform}
 %if "%{?crosstarget}" != ""
 %define _prefix /opt/cross
 %endif
@@ -98,13 +96,11 @@ rm -f gdb/doc/*.info-*
 
 %build
 # >> build pre
-rm -fr %{gdb_build}
-mkdir %{gdb_build}
-cd %{gdb_build}
+
 g77="`which gfortran 2>/dev/null || true`"
 test -z "$g77" || ln -s "$g77" ./g77
 export CFLAGS="$RPM_OPT_FLAGS"
-../configure                                    \
+./configure                                    \
 --prefix=%{_prefix}                             \
 --libdir=%{_libdir}                             \
 --sysconfdir=%{_sysconfdir}                     \
@@ -143,18 +139,16 @@ make %{?jobs:-j%jobs}
 make %{?_smp_mflags} info
 
 # Copy the <sourcetree>/gdb/NEWS file to the directory above it.
-cp $RPM_BUILD_DIR/%{gdb_src}/gdb/NEWS $RPM_BUILD_DIR/%{gdb_src}
+cp gdb/NEWS .
 
 %install
 rm -rf %{buildroot}
-# Initially we're in the %{gdb_src} directory.
-cd %{gdb_build}
 
 %make_install
 
 # install the gcore script in /usr/bin
 %if "%{?crosstarget}" == ""
-cp $RPM_BUILD_DIR/%{gdb_src}/gdb/gdb_gcore.sh $RPM_BUILD_ROOT%{_bindir}/gcore
+cp gdb/gdb_gcore.sh $RPM_BUILD_ROOT%{_bindir}/gcore
 chmod 755 $RPM_BUILD_ROOT%{_bindir}/gcore
 %else
 rm -rf $RPM_BUILD_ROOT%{_infodir}/
@@ -173,8 +167,6 @@ rm -f $RPM_BUILD_ROOT%{_infodir}/dir
 
 
 %check
-# Initially we're in the %{gdb_src} directory.
-cd %{gdb_build}
 
 %if "%{?crosstarget}" == ""
 %post
