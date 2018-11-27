@@ -32,7 +32,7 @@ Patch3: gdb-6.6-buildid-locate-rpm.patch
 Patch4: gdb-6.6-buildid-locate-rpm-librpm-workaround.patch
 #
 Patch5: gdb-6.6-buildid-locate-rpm-suse.patch
-
+Patch6: gdb-7.6.2-proc_service-definition.patch
 
 Requires(post): /sbin/install-info
 Requires(postun): /sbin/install-info
@@ -76,6 +76,7 @@ This package provides a program that allows you to run GDB on a different machin
 %patch3 -p1
 %patch4 -p1
 %patch5 -p1
+%patch6 -p1
 # >> setu1
 # Files have `# <number> <file>' statements breaking VPATH / find-debuginfo.sh .
 rm -f gdb/ada-exp.c gdb/ada-lex.c gdb/c-exp.c gdb/cp-name-parser.c gdb/f-exp.c
