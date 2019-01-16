@@ -1,12 +1,9 @@
 Name: cross-armv7tnhl-gdb
 %define crosstarget armv7tnhl-meego-linux-gnueabi
 
-# >> macros
 %if "%{?crosstarget}" != ""
 %define _prefix /opt/cross
 %endif
-
-# << macros
 
 Summary:    A GNU source-level debugger for C, C++, Java and other languages
 Version:    7.6.2
@@ -20,22 +17,15 @@ Source2:    precheckin.sh
 
 Patch0: gdb-archer.patch
 # New locating of the matching binaries from the pure core file (build-id).
-#=push
 Patch1: gdb-6.6-buildid-locate.patch
 # Fix loading of core files without build-ids but with build-ids in executables.
-#=push
 Patch2: gdb-6.6-buildid-locate-solib-missing-ids.patch
-#=push
 Patch3: gdb-6.6-buildid-locate-rpm.patch
 # Workaround librpm BZ 643031 due to its unexpected exit() calls (BZ 642879).
-#=push
 Patch4: gdb-6.6-buildid-locate-rpm-librpm-workaround.patch
-#
 Patch5: gdb-6.6-buildid-locate-rpm-suse.patch
 Patch6: gdb-7.6.2-proc_service-definition.patch
 
-Requires(post): /sbin/install-info
-Requires(postun): /sbin/install-info
 BuildRequires:  pkgconfig(ncurses)
 BuildRequires:  texinfo
 BuildRequires:  gettext
@@ -67,6 +57,16 @@ This package provides a program that allows you to run GDB on a different machin
 
 %endif
 
+%package doc
+Summary:   Documentation for %{name}
+Group:     Documentation
+Requires:  %{name} = %{version}-%{release}
+Requires(post): /sbin/install-info
+Requires(postun): /sbin/install-info
+
+%description doc
+Man and info pages for %{name}.
+
 %prep
 %setup -q -n %{name}-%{version}/upstream
 # The archer patch is a rather large rebase. It doesn't seem to be necessary so we'll disable it.
@@ -77,7 +77,6 @@ This package provides a program that allows you to run GDB on a different machin
 %patch4 -p1
 %patch5 -p1
 %patch6 -p1
-# >> setu1
 # Files have `# <number> <file>' statements breaking VPATH / find-debuginfo.sh .
 rm -f gdb/ada-exp.c gdb/ada-lex.c gdb/c-exp.c gdb/cp-name-parser.c gdb/f-exp.c
 rm -f gdb/jv-exp.c gdb/m2-exp.c gdb/objc-exp.c gdb/p-exp.c
@@ -93,10 +92,8 @@ rm -f bfd/doc/*.info
 rm -f bfd/doc/*.info-*
 rm -f gdb/doc/*.info
 rm -f gdb/doc/*.info-*
-# << setup
 
 %build
-# >> build pre
 
 g77="`which gfortran 2>/dev/null || true`"
 test -z "$g77" || ln -s "$g77" ./g77
@@ -132,15 +129,10 @@ export CFLAGS="$RPM_OPT_FLAGS"
 
 # We can't use --with-system-readline as we can't update system readline to
 # version 6+ because of GPLv3 things.
-# << build pre
 
-
-make %{?jobs:-j%jobs}
+make %{?_smp_mflags}
 
 make %{?_smp_mflags} info
-
-# Copy the <sourcetree>/gdb/NEWS file to the directory above it.
-cp gdb/NEWS .
 
 %install
 rm -rf %{buildroot}
@@ -151,11 +143,13 @@ rm -rf %{buildroot}
 %if "%{?crosstarget}" == ""
 cp gdb/gdb_gcore.sh $RPM_BUILD_ROOT%{_bindir}/gcore
 chmod 755 $RPM_BUILD_ROOT%{_bindir}/gcore
+
+mkdir -p $RPM_BUILD_ROOT%{_docdir}/%{name}-%{version}
+install -m0644 -t $RPM_BUILD_ROOT%{_docdir}/%{name}-%{version} README gdb/NEWS
 %else
 rm -rf $RPM_BUILD_ROOT%{_infodir}/
 rm -rf $RPM_BUILD_ROOT%{_mandir}/
 %endif
-
 
 rm -rf $RPM_BUILD_ROOT%{_datadir}/locale/
 rm -f $RPM_BUILD_ROOT%{_infodir}/bfd*
@@ -166,17 +160,14 @@ rm -rf $RPM_BUILD_ROOT%{_includedir}
 rm -rf $RPM_BUILD_ROOT/%{_libdir}/lib{bfd*,opcodes*,iberty*,mmalloc*}
 rm -f $RPM_BUILD_ROOT%{_infodir}/dir
 
-
-%check
-
 %if "%{?crosstarget}" == ""
-%post
-%install_info --info-dir=%_infodir %{_infodir}/annotate.info.gz
-%install_info --info-dir=%_infodir %{_infodir}/gdb.info.gz
-%install_info --info-dir=%_infodir %{_infodir}/gdbint.info.gz
-%install_info --info-dir=%_infodir %{_infodir}/stabs.info.gz
+%post doc
+%install_info --info-dir=%{_infodir} %{_infodir}/annotate.info.gz
+%install_info --info-dir=%{_infodir} %{_infodir}/gdb.info.gz
+%install_info --info-dir=%{_infodir} %{_infodir}/gdbint.info.gz
+%install_info --info-dir=%{_infodir} %{_infodir}/stabs.info.gz
 
-%postun
+%postun doc
 if [ $1 = 0 ] ;then
 %install_info_delete --info-dir=%{_infodir} %{_infodir}/annotate.info.gz
 %install_info_delete --info-dir=%{_infodir} %{_infodir}/gdb.info.gz
@@ -192,23 +183,28 @@ fi
 
 %files
 %defattr(-,root,root,-)
-%doc COPYING COPYING.LIB README NEWS
+%license COPYING COPYING.LIB
 %{_bindir}/gcore
 %{_bindir}/gdb
-%{_mandir}/*/gdb.1*
 %{_datadir}/gdb
-%{_infodir}/annotate.info.gz
-%{_infodir}/gdb.info.gz
-%{_infodir}/gdbint.info.gz
-%{_infodir}/stabs.info.gz
 
 %files gdbserver
 %defattr(-,root,root,-)
 %{_bindir}/gdbserver
-%{_mandir}/*/gdbserver.1*
 %ifarch %{ix86} x86_64
 %{_libdir}/libinproctrace.so
 %endif
+
+%files doc
+%defattr(-,root,root,-)
+%{_mandir}/*/gdb.1*
+%{_mandir}/*/gdbserver.1*
+%{_infodir}/annotate.info.gz
+%{_infodir}/gdb.info.gz
+%{_infodir}/gdbint.info.gz
+%{_infodir}/stabs.info.gz
+%{_docdir}/%{name}-%{version}
+
 %else
 %files
 %defattr(-,root,root,-)
