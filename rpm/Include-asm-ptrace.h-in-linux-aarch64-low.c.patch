@@ -1,0 +1,29 @@
+From c3bc8b3bb3b5684fb6b5e7a6b531ea0a9106de39 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Aapi=20H=C3=A4m=C3=A4l=C3=A4inen?=
+ <aapi.hamalainen@jollamobile.com>
+Date: Mon, 25 Feb 2019 12:07:04 +0200
+Subject: [PATCH] Include asm-ptrace.h in linux-aarch64-low.c
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Aapi Hämäläinen <aapi.hamalainen@jollamobile.com>
+---
+ gdb/gdbserver/linux-aarch64-low.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/gdb/gdbserver/linux-aarch64-low.c b/gdb/gdbserver/linux-aarch64-low.c
+index 97f701d037..4da6055f6f 100644
+--- a/gdb/gdbserver/linux-aarch64-low.c
++++ b/gdb/gdbserver/linux-aarch64-low.c
+@@ -27,6 +27,7 @@
+ #include <sys/user.h>
+ #include <sys/ptrace.h>
+ #include <sys/uio.h>
++#include <asm/ptrace.h>
+ 
+ #include "gdb_proc_service.h"
+ 
+-- 
+2.17.1
+
