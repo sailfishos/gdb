@@ -25,6 +25,8 @@ Patch3: gdb-6.6-buildid-locate-rpm.patch
 Patch4: gdb-6.6-buildid-locate-rpm-librpm-workaround.patch
 Patch5: gdb-6.6-buildid-locate-rpm-suse.patch
 Patch6: gdb-7.6.2-proc_service-definition.patch
+Patch7: Include-asm-ptrace.h-in-aarch64-linux-nat.c.patch
+Patch8: Include-asm-ptrace.h-in-linux-aarch64-low.c.patch
 
 BuildRequires:  pkgconfig(ncurses)
 BuildRequires:  texinfo
@@ -77,6 +79,8 @@ Man and info pages for %{name}.
 %patch4 -p1
 %patch5 -p1
 %patch6 -p1
+%patch7 -p1
+%patch8 -p1
 # Files have `# <number> <file>' statements breaking VPATH / find-debuginfo.sh .
 rm -f gdb/ada-exp.c gdb/ada-lex.c gdb/c-exp.c gdb/cp-name-parser.c gdb/f-exp.c
 rm -f gdb/jv-exp.c gdb/m2-exp.c gdb/objc-exp.c gdb/p-exp.c
