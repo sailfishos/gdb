@@ -1,3 +1,5 @@
+%global     __python %{__python3}
+
 %define     _unpackaged_files_terminate_build 0
 
 Name: cross-x86_64-gdb
@@ -32,7 +34,7 @@ BuildRequires:  gettext
 BuildRequires:  flex
 BuildRequires:  bison
 BuildRequires:  expat-devel
-BuildRequires:  python-devel
+BuildRequires:  python3-devel
 BuildRequires:  libstdc++
 BuildRequires:  zlib-devel
 
@@ -107,7 +109,7 @@ export CFLAGS="$RPM_OPT_FLAGS"
     --disable-rpath                                         \
     --with-expat                                            \
     --enable-tui                                            \
-    --with-python                                           \
+    --with-python=%{__python}                               \
     --without-libunwind                                     \
     --enable-64-bit-bfd                                     \
     --enable-static --disable-shared --enable-debug         \
