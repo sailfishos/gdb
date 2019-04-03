@@ -1,3 +1,7 @@
+%global     __python %{__python3}
+
+%define     _unpackaged_files_terminate_build 0
+
 Name: cross-armv7thl-gdb
 %define crosstarget armv7thl-meego-linux-gnueabi
 
@@ -6,16 +10,15 @@ Name: cross-armv7thl-gdb
 %endif
 
 Summary:    A GNU source-level debugger for C, C++, Java and other languages
-Version:    7.6.2
+Version:    8.2.1
 Release:    1
 Group:      Development/Debuggers
 License:    GPLv3+
 URL:        http://gnu.org/software/gdb/
-Source0:    ftp://ftp.gnu.org/gnu/gdb/%{name}-%{version}.tar.bz2
+Source0:    %{name}-%{version}.tar.bz2
 Source1:    gdb-rpmlintrc
 Source2:    precheckin.sh
 
-Patch0: gdb-archer.patch
 # New locating of the matching binaries from the pure core file (build-id).
 Patch1: gdb-6.6-buildid-locate.patch
 # Fix loading of core files without build-ids but with build-ids in executables.
@@ -24,9 +27,6 @@ Patch3: gdb-6.6-buildid-locate-rpm.patch
 # Workaround librpm BZ 643031 due to its unexpected exit() calls (BZ 642879).
 Patch4: gdb-6.6-buildid-locate-rpm-librpm-workaround.patch
 Patch5: gdb-6.6-buildid-locate-rpm-suse.patch
-Patch6: gdb-7.6.2-proc_service-definition.patch
-Patch7: Include-asm-ptrace.h-in-aarch64-linux-nat.c.patch
-Patch8: Include-asm-ptrace.h-in-linux-aarch64-low.c.patch
 
 BuildRequires:  pkgconfig(ncurses)
 BuildRequires:  texinfo
@@ -34,7 +34,7 @@ BuildRequires:  gettext
 BuildRequires:  flex
 BuildRequires:  bison
 BuildRequires:  expat-devel
-BuildRequires:  python-devel
+BuildRequires:  python3-devel
 BuildRequires:  libstdc++
 BuildRequires:  zlib-devel
 
@@ -71,64 +71,48 @@ Man and info pages for %{name}.
 
 %prep
 %setup -q -n %{name}-%{version}/upstream
-# The archer patch is a rather large rebase. It doesn't seem to be necessary so we'll disable it.
-#%patch0 -p1
 %patch1 -p1
 %patch2 -p1
 %patch3 -p1
 %patch4 -p1
 %patch5 -p1
-%patch6 -p1
-%patch7 -p1
-%patch8 -p1
-# Files have `# <number> <file>' statements breaking VPATH / find-debuginfo.sh .
-rm -f gdb/ada-exp.c gdb/ada-lex.c gdb/c-exp.c gdb/cp-name-parser.c gdb/f-exp.c
-rm -f gdb/jv-exp.c gdb/m2-exp.c gdb/objc-exp.c gdb/p-exp.c
 
 cat > gdb/version.in << _FOO
 Mer (%{version})
 _FOO
-
-# Remove the info and other generated files added by the FSF release
-# process.
-rm -f libdecnumber/gstdint.h
-rm -f bfd/doc/*.info
-rm -f bfd/doc/*.info-*
-rm -f gdb/doc/*.info
-rm -f gdb/doc/*.info-*
 
 %build
 
 g77="`which gfortran 2>/dev/null || true`"
 test -z "$g77" || ln -s "$g77" ./g77
 export CFLAGS="$RPM_OPT_FLAGS"
-./configure                                    \
---prefix=%{_prefix}                             \
---libdir=%{_libdir}                             \
---sysconfdir=%{_sysconfdir}                     \
---mandir=%{_mandir}                             \
---infodir=%{_infodir}                           \
+./configure                                                 \
+    --prefix=%{_prefix}                                     \
+    --libdir=%{_libdir}                                     \
+    --sysconfdir=%{_sysconfdir}                             \
+    --mandir=%{_mandir}                                     \
+    --infodir=%{_infodir}                                   \
 %if "%{?crosstarget}" != ""
---with-gdb-datadir=%{_datadir}/%{crosstarget}-gdb              \
---with-pythondir=%{_datadir}/%{crosstarget}-gdb/python         \
+    --with-gdb-datadir=%{_datadir}/%{crosstarget}-gdb       \
+    --with-pythondir=%{_datadir}/%{crosstarget}-gdb/python  \
 %else
---with-gdb-datadir=%{_datadir}/gdb              \
---with-pythondir=%{_datadir}/gdb/python         \
+    --with-gdb-datadir=%{_datadir}/gdb                      \
+    --with-pythondir=%{_datadir}/gdb/python                 \
 %endif
---enable-gdb-build-warnings=,-Wno-unused        \
---disable-werror                                \
---with-separate-debug-dir=/usr/lib/debug        \
+    --enable-gdb-build-warnings=,-Wno-unused                \
+    --disable-werror                                        \
+    --with-separate-debug-dir=/usr/lib/debug                \
 %if "%{?crosstarget}" != ""
---target=%{crosstarget} \
+    --target=%{crosstarget} \
 %endif
---disable-sim                                  \
---disable-rpath                                 \
---with-expat                                    \
---enable-tui                                    \
---with-python                                   \
---without-libunwind                             \
---enable-64-bit-bfd                             \
---enable-static --disable-shared --enable-debug \
+    --disable-sim                                           \
+    --disable-rpath                                         \
+    --with-expat                                            \
+    --enable-tui                                            \
+    --with-python=%{__python}                               \
+    --without-libunwind                                     \
+    --enable-64-bit-bfd                                     \
+    --enable-static --disable-shared --enable-debug         \
 %{_target_platform}
 
 # We can't use --with-system-readline as we can't update system readline to
@@ -138,33 +122,61 @@ make %{?_smp_mflags}
 
 make %{?_smp_mflags} info
 
-%install
+%clean
 rm -rf %{buildroot}
 
+%install
 %make_install
 
 # install the gcore script in /usr/bin
 %if "%{?crosstarget}" == ""
-cp gdb/gdb_gcore.sh $RPM_BUILD_ROOT%{_bindir}/gcore
-chmod 755 $RPM_BUILD_ROOT%{_bindir}/gcore
+cp gdb/gcore.in %{buildroot}%{_bindir}/gcore
+chmod 755 %{buildroot}%{_bindir}/gcore
 
-mkdir -p $RPM_BUILD_ROOT%{_docdir}/%{name}-%{version}
-install -m0644 -t $RPM_BUILD_ROOT%{_docdir}/%{name}-%{version} README gdb/NEWS
+mkdir -p %{buildroot}%{_docdir}/%{name}-%{version}
+install -m0644 -t %{buildroot}%{_docdir}/%{name}-%{version} README gdb/NEWS
+
+rm %{buildroot}%{_infodir}/bfd*
+rm %{buildroot}%{_bindir}/addr2line
+rm %{buildroot}%{_bindir}/ar
+rm %{buildroot}%{_bindir}/as
+rm %{buildroot}%{_bindir}/c++filt
+rm %{buildroot}%{_bindir}/elfedit
+rm %{buildroot}%{_bindir}/gdb-add-index
+rm %{buildroot}%{_bindir}/gprof
+rm %{buildroot}%{_bindir}/ld
+rm %{buildroot}%{_bindir}/ld.bfd
+rm %{buildroot}%{_bindir}/nm
+rm %{buildroot}%{_bindir}/objcopy
+rm %{buildroot}%{_bindir}/objdump
+rm %{buildroot}%{_bindir}/ranlib
+rm %{buildroot}%{_bindir}/readelf
+rm %{buildroot}%{_bindir}/size
+rm %{buildroot}%{_bindir}/strings
+rm %{buildroot}%{_bindir}/strip
+rm %{buildroot}/usr/%{_target_platform}/bin/ar
+rm %{buildroot}/usr/%{_target_platform}/bin/as
+rm %{buildroot}/usr/%{_target_platform}/bin/ld
+rm %{buildroot}/usr/%{_target_platform}/bin/ld.bfd
+rm %{buildroot}/usr/%{_target_platform}/bin/nm
+rm %{buildroot}/usr/%{_target_platform}/bin/objcopy
+rm %{buildroot}/usr/%{_target_platform}/bin/objdump
+rm %{buildroot}/usr/%{_target_platform}/bin/ranlib
+rm %{buildroot}/usr/%{_target_platform}/bin/readelf
+rm %{buildroot}/usr/%{_target_platform}/bin/strip
+rm -r %{buildroot}/usr/%{_target_platform}/lib/ldscripts/
+
 %else
-rm -rf $RPM_BUILD_ROOT%{_infodir}/
-rm -rf $RPM_BUILD_ROOT%{_mandir}/
+rm -r %{buildroot}%{_infodir}/
+rm -r %{buildroot}%{_mandir}/
+
 %endif
 
-rm -rf $RPM_BUILD_ROOT%{_datadir}/locale/
-rm -f $RPM_BUILD_ROOT%{_infodir}/bfd*
-rm -f $RPM_BUILD_ROOT%{_infodir}/standard*
-rm -f $RPM_BUILD_ROOT%{_infodir}/mmalloc*
-rm -f $RPM_BUILD_ROOT%{_infodir}/configure*
-rm -rf $RPM_BUILD_ROOT%{_includedir}
-rm -rf $RPM_BUILD_ROOT/%{_libdir}/lib{bfd*,opcodes*,iberty*,mmalloc*}
-rm -f $RPM_BUILD_ROOT%{_infodir}/dir
+rm -r %{buildroot}%{_datadir}/locale/
+rm -r %{buildroot}%{_includedir}
 
 %if "%{?crosstarget}" == ""
+
 %post doc
 %install_info --info-dir=%{_infodir} %{_infodir}/annotate.info.gz
 %install_info --info-dir=%{_infodir} %{_infodir}/gdb.info.gz
@@ -172,15 +184,18 @@ rm -f $RPM_BUILD_ROOT%{_infodir}/dir
 %install_info --info-dir=%{_infodir} %{_infodir}/stabs.info.gz
 
 %postun doc
-if [ $1 = 0 ] ;then
-%install_info_delete --info-dir=%{_infodir} %{_infodir}/annotate.info.gz
-%install_info_delete --info-dir=%{_infodir} %{_infodir}/gdb.info.gz
-%install_info_delete --info-dir=%{_infodir} %{_infodir}/gdbint.info.gz
-%install_info_delete --info-dir=%{_infodir} %{_infodir}/stabs.info.gz
+if [ $1 = 0 ]
+then
+    %install_info_delete --info-dir=%{_infodir} %{_infodir}/annotate.info.gz
+    %install_info_delete --info-dir=%{_infodir} %{_infodir}/gdb.info.gz
+    %install_info_delete --info-dir=%{_infodir} %{_infodir}/gdbint.info.gz
+    %install_info_delete --info-dir=%{_infodir} %{_infodir}/stabs.info.gz
 fi
+
 %endif
 
 %if "%{?crosstarget}" == ""
+
 %post gdbserver -p /sbin/ldconfig
 
 %postun gdbserver -p /sbin/ldconfig
@@ -197,20 +212,25 @@ fi
 %{_bindir}/gdbserver
 %ifarch %{ix86} x86_64
 %{_libdir}/libinproctrace.so
+
 %endif
 
 %files doc
 %defattr(-,root,root,-)
 %{_mandir}/*/gdb.1*
 %{_mandir}/*/gdbserver.1*
+%{_mandir}/man1/gcore.1.gz
+%{_mandir}/man1/gdb-add-index.1.gz
+%{_mandir}/man5/gdbinit.5.gz
 %{_infodir}/annotate.info.gz
 %{_infodir}/gdb.info.gz
-%{_infodir}/gdbint.info.gz
 %{_infodir}/stabs.info.gz
 %{_docdir}/%{name}-%{version}
 
 %else
+
 %files
 %defattr(-,root,root,-)
 /opt/cross
+
 %endif
