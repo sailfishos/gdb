@@ -37,6 +37,7 @@ BuildRequires:  expat-devel
 BuildRequires:  python3-devel
 BuildRequires:  libstdc++
 BuildRequires:  zlib-devel
+Requires:       python3-base
 
 %description
 GDB, the GNU debugger, allows you to debug programs written in C, C++,
@@ -47,6 +48,7 @@ and printing their data.
 %package gdbserver
 Summary:    A standalone server for GDB (the GNU source-level debugger)
 Group:      Development/Debuggers
+Requires:   python3-base
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 
