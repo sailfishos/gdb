@@ -1,6 +1,6 @@
 %global     __python %{__python3}
 
-%define     _unpackaged_files_terminate_build 0
+%global     ctarch %{crosstarget}__%{_arch}
 
 Name: cross-armv7hl-gdb
 %define crosstarget armv7hl-meego-linux-gnueabi
@@ -44,32 +44,6 @@ GDB, the GNU debugger, allows you to debug programs written in C, C++,
 Java, and other languages, by executing them in a controlled fashion
 and printing their data.
 
-%if "%{?crosstarget}" == ""
-%package gdbserver
-Summary:    A standalone server for GDB (the GNU source-level debugger)
-Group:      Development/Debuggers
-Requires:   python3-base
-Requires(post): /sbin/ldconfig
-Requires(postun): /sbin/ldconfig
-
-%description gdbserver
-GDB, the GNU debugger, allows you to debug programs written in C, C++,
-Java, and other languages, by executing them in a controlled fashion
-and printing their data.
-
-This package provides a program that allows you to run GDB on a different machine than the one which is running the program being debugged.
-
-%endif
-
-%package doc
-Summary:   Documentation for %{name}
-Group:     Documentation
-Requires:  %{name} = %{version}-%{release}
-Requires(post): /sbin/install-info
-Requires(postun): /sbin/install-info
-
-%description doc
-Man and info pages for %{name}.
 
 %prep
 %setup -q -n %{name}-%{version}/upstream
@@ -83,11 +57,21 @@ cat > gdb/version.in << _FOO
 Mer (%{version})
 _FOO
 
-%build
+# Remove the info and other generated files added by the FSF release
+# process. (From Fedora)
+rm -f libdecnumber/gstdint.h
+rm -f bfd/doc/*.info
+rm -f bfd/doc/*.info-*
+rm -f gdb/doc/*.info
+rm -f gdb/doc/*.info-*
 
-g77="`which gfortran 2>/dev/null || true`"
+%build
+g77="$( which gfortran 2>/dev/null || true )"
 test -z "$g77" || ln -s "$g77" ./g77
 export CFLAGS="$RPM_OPT_FLAGS"
+
+# We can't use --with-system-readline as we can't update system readline to
+# version 6+ because of GPLv3 things.
 ./configure                                                 \
     --prefix=%{_prefix}                                     \
     --libdir=%{_libdir}                                     \
@@ -97,6 +81,7 @@ export CFLAGS="$RPM_OPT_FLAGS"
 %if "%{?crosstarget}" != ""
     --with-gdb-datadir=%{_datadir}/%{crosstarget}-gdb       \
     --with-pythondir=%{_datadir}/%{crosstarget}-gdb/python  \
+    --target=%{crosstarget}                                 \
 %else
     --with-gdb-datadir=%{_datadir}/gdb                      \
     --with-pythondir=%{_datadir}/gdb/python                 \
@@ -104,24 +89,24 @@ export CFLAGS="$RPM_OPT_FLAGS"
     --enable-gdb-build-warnings=,-Wno-unused                \
     --disable-werror                                        \
     --with-separate-debug-dir=/usr/lib/debug                \
-%if "%{?crosstarget}" != ""
-    --target=%{crosstarget} \
-%endif
-    --disable-sim                                           \
     --disable-rpath                                         \
     --with-expat                                            \
     --enable-tui                                            \
     --with-python=%{__python}                               \
     --without-libunwind                                     \
     --enable-64-bit-bfd                                     \
-    --enable-static --disable-shared --enable-debug         \
-%{_target_platform}
-
-# We can't use --with-system-readline as we can't update system readline to
-# version 6+ because of GPLv3 things.
+    --enable-static                                         \
+    --disable-shared                                        \
+    --enable-debug                                          \
+    --disable-binutils                                      \
+    --disable-ld                                            \
+    --disable-gold                                          \
+    --disable-gas                                           \
+    --disable-sim                                           \
+    --disable-gprof                                         \
+    %{_target_platform}
 
 make %{?_smp_mflags}
-
 make %{?_smp_mflags} info
 
 %clean
@@ -130,54 +115,71 @@ rm -rf %{buildroot}
 %install
 %make_install
 
-# install the gcore script in /usr/bin
-%if "%{?crosstarget}" == ""
-cp gdb/gcore.in %{buildroot}%{_bindir}/gcore
-chmod 755 %{buildroot}%{_bindir}/gcore
-
-mkdir -p %{buildroot}%{_docdir}/%{name}-%{version}
-install -m0644 -t %{buildroot}%{_docdir}/%{name}-%{version} README gdb/NEWS
-
-rm %{buildroot}%{_infodir}/bfd*
-rm %{buildroot}%{_bindir}/addr2line
-rm %{buildroot}%{_bindir}/ar
-rm %{buildroot}%{_bindir}/as
-rm %{buildroot}%{_bindir}/c++filt
-rm %{buildroot}%{_bindir}/elfedit
-rm %{buildroot}%{_bindir}/gdb-add-index
-rm %{buildroot}%{_bindir}/gprof
-rm %{buildroot}%{_bindir}/ld
-rm %{buildroot}%{_bindir}/ld.bfd
-rm %{buildroot}%{_bindir}/nm
-rm %{buildroot}%{_bindir}/objcopy
-rm %{buildroot}%{_bindir}/objdump
-rm %{buildroot}%{_bindir}/ranlib
-rm %{buildroot}%{_bindir}/readelf
-rm %{buildroot}%{_bindir}/size
-rm %{buildroot}%{_bindir}/strings
-rm %{buildroot}%{_bindir}/strip
-rm %{buildroot}/usr/%{_target_platform}/bin/ar
-rm %{buildroot}/usr/%{_target_platform}/bin/as
-rm %{buildroot}/usr/%{_target_platform}/bin/ld
-rm %{buildroot}/usr/%{_target_platform}/bin/ld.bfd
-rm %{buildroot}/usr/%{_target_platform}/bin/nm
-rm %{buildroot}/usr/%{_target_platform}/bin/objcopy
-rm %{buildroot}/usr/%{_target_platform}/bin/objdump
-rm %{buildroot}/usr/%{_target_platform}/bin/ranlib
-rm %{buildroot}/usr/%{_target_platform}/bin/readelf
-rm %{buildroot}/usr/%{_target_platform}/bin/strip
-rm -r %{buildroot}/usr/%{_target_platform}/lib/ldscripts/
-
-%else
-rm -r %{buildroot}%{_infodir}/
-rm -r %{buildroot}%{_mandir}/
-
-%endif
-
 rm -r %{buildroot}%{_datadir}/locale/
 rm -r %{buildroot}%{_includedir}
 
 %if "%{?crosstarget}" == ""
+cp gdb/gcore.in "%{buildroot}%{_bindir}/gcore"
+chmod 755 "%{buildroot}%{_bindir}/gcore"
+mkdir -p "%{buildroot}%{_docdir}/%{name}-%{version}"
+install -m 0644 -t "%{buildroot}%{_docdir}/%{name}-%{version}" README gdb/NEWS
+rm "%{buildroot}%{_infodir}"/bfd*
+%else
+rm -r "%{buildroot}%{_infodir}/"
+rm -r "%{buildroot}%{_mandir}/"
+%endif
+
+
+%if "%{?crosstarget}" == ""
+#### NON-CROSS PACS
+
+%files
+%defattr(-,root,root,-)
+%license COPYING COPYING.LIB
+%{_bindir}/gcore
+%{_bindir}/gdb
+%{_bindir}/gdb-add-index
+%{_datadir}/gdb
+%if "%{_arch}" == "aarch64"
+/usr/lib/libinproctrace.so
+%endif
+
+
+%package gdbserver
+Summary:    A standalone server for GDB (the GNU source-level debugger)
+Group:      Development/Debuggers
+Requires:   python3-base
+Requires(post): /sbin/ldconfig
+Requires(postun): /sbin/ldconfig
+
+%description gdbserver
+GDB, the GNU debugger, allows you to debug programs written in C, C++,
+Java, and other languages, by executing them in a controlled fashion
+and printing their data.
+
+This package provides a program that allows you to run GDB on a different
+machine than the one which is running the program being debugged.
+
+%post gdbserver -p /sbin/ldconfig
+%postun gdbserver -p /sbin/ldconfig
+
+%files gdbserver
+%defattr(-,root,root,-)
+%{_bindir}/gdbserver
+%ifarch %{ix86} x86_64
+%{_libdir}/libinproctrace.so
+%endif
+
+
+%package doc
+Summary:   Documentation for %{name}
+Group:     Documentation
+Requires:  %{name} = %{version}-%{release}
+Requires(post): /sbin/install-info
+Requires(postun): /sbin/install-info
+
+%description doc
+Man and info pages for %{name}.
 
 %post doc
 %install_info --info-dir=%{_infodir} %{_infodir}/annotate.info.gz
@@ -194,29 +196,6 @@ then
     %install_info_delete --info-dir=%{_infodir} %{_infodir}/stabs.info.gz
 fi
 
-%endif
-
-%if "%{?crosstarget}" == ""
-
-%post gdbserver -p /sbin/ldconfig
-
-%postun gdbserver -p /sbin/ldconfig
-
-%files
-%defattr(-,root,root,-)
-%license COPYING COPYING.LIB
-%{_bindir}/gcore
-%{_bindir}/gdb
-%{_datadir}/gdb
-
-%files gdbserver
-%defattr(-,root,root,-)
-%{_bindir}/gdbserver
-%ifarch %{ix86} x86_64
-%{_libdir}/libinproctrace.so
-
-%endif
-
 %files doc
 %defattr(-,root,root,-)
 %{_mandir}/*/gdb.1*
@@ -229,10 +208,115 @@ fi
 %{_infodir}/stabs.info.gz
 %{_docdir}/%{name}-%{version}
 
-%else
+
+%else # crosstarget
+#### CROSS PACS
 
 %files
 %defattr(-,root,root,-)
-/opt/cross
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/FrameDecorator.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/FrameIterator.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__init__.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/FrameDecorator.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/FrameDecorator.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/FrameIterator.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/FrameIterator.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/__init__.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/__init__.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/frames.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/frames.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/printing.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/printing.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/prompt.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/prompt.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/types.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/types.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/unwinder.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/unwinder.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/xmethod.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/xmethod.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__init__.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/__init__.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/__init__.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/explore.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/explore.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/frame_filters.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/frame_filters.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/pretty_printers.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/pretty_printers.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/prompt.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/prompt.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/type_printers.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/type_printers.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/unwinders.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/unwinders.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/xmethods.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/xmethods.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/explore.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/frame_filters.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/pretty_printers.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/prompt.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/type_printers.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/unwinders.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/xmethods.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/frames.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__init__.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/__init__.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/__init__.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/as_string.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/as_string.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/caller_is.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/caller_is.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/strfns.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/strfns.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/as_string.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/caller_is.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/strfns.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/printer/__init__.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/printer/__pycache__/__init__.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/printer/__pycache__/__init__.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/printer/__pycache__/bound_registers.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/printer/__pycache__/bound_registers.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/printer/bound_registers.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/printing.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/prompt.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/types.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/unwinder.py
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/xmethod.py
+/opt/cross/share/%{crosstarget}-gdb/syscalls/aarch64-linux.xml
+/opt/cross/share/%{crosstarget}-gdb/syscalls/amd64-linux.xml
+/opt/cross/share/%{crosstarget}-gdb/syscalls/arm-linux.xml
+/opt/cross/share/%{crosstarget}-gdb/syscalls/freebsd.xml
+/opt/cross/share/%{crosstarget}-gdb/syscalls/gdb-syscalls.dtd
+/opt/cross/share/%{crosstarget}-gdb/syscalls/i386-linux.xml
+/opt/cross/share/%{crosstarget}-gdb/syscalls/mips-n32-linux.xml
+/opt/cross/share/%{crosstarget}-gdb/syscalls/mips-n64-linux.xml
+/opt/cross/share/%{crosstarget}-gdb/syscalls/mips-o32-linux.xml
+/opt/cross/share/%{crosstarget}-gdb/syscalls/ppc-linux.xml
+/opt/cross/share/%{crosstarget}-gdb/syscalls/ppc64-linux.xml
+/opt/cross/share/%{crosstarget}-gdb/syscalls/s390-linux.xml
+/opt/cross/share/%{crosstarget}-gdb/syscalls/s390x-linux.xml
+/opt/cross/share/%{crosstarget}-gdb/syscalls/sparc-linux.xml
+/opt/cross/share/%{crosstarget}-gdb/syscalls/sparc64-linux.xml
+/opt/cross/share/%{crosstarget}-gdb/system-gdbinit/elinos.py
+/opt/cross/share/%{crosstarget}-gdb/system-gdbinit/__pycache__/elinos.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/system-gdbinit/__pycache__/elinos.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/system-gdbinit/wrs-linux.py
+/opt/cross/share/%{crosstarget}-gdb/system-gdbinit/__pycache__/wrs-linux.cpython-37.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/system-gdbinit/__pycache__/wrs-linux.cpython-37.pyc
 
+%if "%{ctarch}" == "aarch64-meego-linux-gnu__aarch64" || "%{ctarch}" == "i486-meego-linux-gnu__i386" || "%{ctarch}" == "armv7hl-meego-linux-gnueabi__arm"
+/opt/cross/bin/gcore
+/opt/cross/bin/gdb
+/opt/cross/bin/gdb-add-index
+/opt/cross/bin/gdbserver
+%else
+/opt/cross/bin/%{crosstarget}-gdb
+/opt/cross/bin/%{crosstarget}-gdb-add-index
 %endif
+
+%if "%{ctarch}" == "aarch64-meego-linux-gnu__aarch64" || "%{ctarch}" == "i486-meego-linux-gnu__i386"
+/opt/cross/lib/libinproctrace.so
+%endif
+
+%endif # crosstarget
