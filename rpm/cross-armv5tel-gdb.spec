@@ -27,6 +27,7 @@ Patch3: gdb-6.6-buildid-locate-rpm.patch
 # Workaround librpm BZ 643031 due to its unexpected exit() calls (BZ 642879).
 Patch4: gdb-6.6-buildid-locate-rpm-librpm-workaround.patch
 Patch5: gdb-6.6-buildid-locate-rpm-suse.patch
+Patch6: system-gdbinit-missing-parentheses.patch
 
 BuildRequires:  pkgconfig(ncurses)
 BuildRequires:  texinfo
@@ -52,6 +53,7 @@ and printing their data.
 %patch3 -p1
 %patch4 -p1
 %patch5 -p1
+%patch6 -p1
 
 cat > gdb/version.in << _FOO
 Mer (%{version})

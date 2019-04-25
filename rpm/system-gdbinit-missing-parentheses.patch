@@ -1,0 +1,25 @@
+diff --git a/gdb/system-gdbinit/elinos.py b/gdb/system-gdbinit/elinos.py
+index a7f098b013..1a51687773 100644
+--- a/gdb/system-gdbinit/elinos.py
++++ b/gdb/system-gdbinit/elinos.py
+@@ -21,7 +21,7 @@ import gdb
+ 
+ 
+ def warn(msg):
+-    print "warning: %s" % msg
++    print("warning: %s" % msg)
+ 
+ 
+ def get_elinos_environment():
+diff --git a/gdb/system-gdbinit/wrs-linux.py b/gdb/system-gdbinit/wrs-linux.py
+index 0a8174754b..22ba178716 100644
+--- a/gdb/system-gdbinit/wrs-linux.py
++++ b/gdb/system-gdbinit/wrs-linux.py
+@@ -21,5 +21,5 @@ if 'ENV_PREFIX' in os.environ:
+     gdb.execute('set sysroot %s' % os.environ['ENV_PREFIX'])
+ 
+ else:
+-    print "warning: ENV_PREFIX environment variable missing."
+-    print "The debugger will probably be unable to find the correct system libraries"
++    print("warning: ENV_PREFIX environment variable missing.")
++    print("The debugger will probably be unable to find the correct system libraries")
