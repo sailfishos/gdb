@@ -148,10 +148,10 @@ rm -r "%{buildroot}%{_mandir}/"
 
 %package gdbserver
 Summary:    A standalone server for GDB (the GNU source-level debugger)
-Group:      Development/Debuggers
-Requires:   python3-base
+%ifarch %{ix86} x86_64
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
+%endif
 
 %description gdbserver
 GDB, the GNU debugger, allows you to debug programs written in C, C++,
@@ -161,8 +161,10 @@ and printing their data.
 This package provides a program that allows you to run GDB on a different
 machine than the one which is running the program being debugged.
 
+%ifarch %{ix86} x86_64
 %post gdbserver -p /sbin/ldconfig
 %postun gdbserver -p /sbin/ldconfig
+%endif
 
 %files gdbserver
 %defattr(-,root,root,-)
