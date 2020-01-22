@@ -9,6 +9,8 @@ Name: cross-mipsel-gdb
 %define _prefix /opt/cross
 %endif
 
+%define     __python_abi %{expand:%(echo '%{__python_version}' | tr -d '.')}
+
 Summary:    A GNU source-level debugger for C, C++, Java and other languages
 Version:    8.2.1
 Release:    1
@@ -149,10 +151,10 @@ rm -r "%{buildroot}%{_mandir}/"
 
 %package gdbserver
 Summary:    A standalone server for GDB (the GNU source-level debugger)
-Group:      Development/Debuggers
-Requires:   python3-base
+%ifarch %{ix86} x86_64
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
+%endif
 
 %description gdbserver
 GDB, the GNU debugger, allows you to debug programs written in C, C++,
@@ -162,8 +164,10 @@ and printing their data.
 This package provides a program that allows you to run GDB on a different
 machine than the one which is running the program being debugged.
 
+%ifarch %{ix86} x86_64
 %post gdbserver -p /sbin/ldconfig
 %postun gdbserver -p /sbin/ldconfig
+%endif
 
 %files gdbserver
 %defattr(-,root,root,-)
@@ -219,41 +223,41 @@ fi
 /opt/cross/share/%{crosstarget}-gdb/python/gdb/FrameDecorator.py
 /opt/cross/share/%{crosstarget}-gdb/python/gdb/FrameIterator.py
 /opt/cross/share/%{crosstarget}-gdb/python/gdb/__init__.py
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/FrameDecorator.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/FrameDecorator.cpython-37.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/FrameIterator.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/FrameIterator.cpython-37.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/__init__.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/__init__.cpython-37.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/frames.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/frames.cpython-37.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/printing.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/printing.cpython-37.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/prompt.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/prompt.cpython-37.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/types.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/types.cpython-37.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/unwinder.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/unwinder.cpython-37.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/xmethod.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/xmethod.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/FrameDecorator.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/FrameDecorator.cpython-%{__python_abi}.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/FrameIterator.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/FrameIterator.cpython-%{__python_abi}.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/__init__.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/__init__.cpython-%{__python_abi}.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/frames.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/frames.cpython-%{__python_abi}.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/printing.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/printing.cpython-%{__python_abi}.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/prompt.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/prompt.cpython-%{__python_abi}.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/types.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/types.cpython-%{__python_abi}.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/unwinder.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/unwinder.cpython-%{__python_abi}.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/xmethod.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/__pycache__/xmethod.cpython-%{__python_abi}.pyc
 /opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__init__.py
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/__init__.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/__init__.cpython-37.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/explore.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/explore.cpython-37.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/frame_filters.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/frame_filters.cpython-37.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/pretty_printers.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/pretty_printers.cpython-37.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/prompt.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/prompt.cpython-37.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/type_printers.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/type_printers.cpython-37.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/unwinders.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/unwinders.cpython-37.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/xmethods.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/xmethods.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/__init__.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/__init__.cpython-%{__python_abi}.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/explore.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/explore.cpython-%{__python_abi}.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/frame_filters.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/frame_filters.cpython-%{__python_abi}.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/pretty_printers.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/pretty_printers.cpython-%{__python_abi}.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/prompt.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/prompt.cpython-%{__python_abi}.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/type_printers.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/type_printers.cpython-%{__python_abi}.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/unwinders.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/unwinders.cpython-%{__python_abi}.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/xmethods.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/command/__pycache__/xmethods.cpython-%{__python_abi}.pyc
 /opt/cross/share/%{crosstarget}-gdb/python/gdb/command/explore.py
 /opt/cross/share/%{crosstarget}-gdb/python/gdb/command/frame_filters.py
 /opt/cross/share/%{crosstarget}-gdb/python/gdb/command/pretty_printers.py
@@ -263,22 +267,22 @@ fi
 /opt/cross/share/%{crosstarget}-gdb/python/gdb/command/xmethods.py
 /opt/cross/share/%{crosstarget}-gdb/python/gdb/frames.py
 /opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__init__.py
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/__init__.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/__init__.cpython-37.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/as_string.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/as_string.cpython-37.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/caller_is.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/caller_is.cpython-37.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/strfns.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/strfns.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/__init__.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/__init__.cpython-%{__python_abi}.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/as_string.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/as_string.cpython-%{__python_abi}.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/caller_is.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/caller_is.cpython-%{__python_abi}.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/strfns.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/function/__pycache__/strfns.cpython-%{__python_abi}.pyc
 /opt/cross/share/%{crosstarget}-gdb/python/gdb/function/as_string.py
 /opt/cross/share/%{crosstarget}-gdb/python/gdb/function/caller_is.py
 /opt/cross/share/%{crosstarget}-gdb/python/gdb/function/strfns.py
 /opt/cross/share/%{crosstarget}-gdb/python/gdb/printer/__init__.py
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/printer/__pycache__/__init__.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/printer/__pycache__/__init__.cpython-37.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/printer/__pycache__/bound_registers.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/python/gdb/printer/__pycache__/bound_registers.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/printer/__pycache__/__init__.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/printer/__pycache__/__init__.cpython-%{__python_abi}.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/printer/__pycache__/bound_registers.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/python/gdb/printer/__pycache__/bound_registers.cpython-%{__python_abi}.pyc
 /opt/cross/share/%{crosstarget}-gdb/python/gdb/printer/bound_registers.py
 /opt/cross/share/%{crosstarget}-gdb/python/gdb/printing.py
 /opt/cross/share/%{crosstarget}-gdb/python/gdb/prompt.py
@@ -301,11 +305,11 @@ fi
 /opt/cross/share/%{crosstarget}-gdb/syscalls/sparc-linux.xml
 /opt/cross/share/%{crosstarget}-gdb/syscalls/sparc64-linux.xml
 /opt/cross/share/%{crosstarget}-gdb/system-gdbinit/elinos.py
-/opt/cross/share/%{crosstarget}-gdb/system-gdbinit/__pycache__/elinos.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/system-gdbinit/__pycache__/elinos.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/system-gdbinit/__pycache__/elinos.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/system-gdbinit/__pycache__/elinos.cpython-%{__python_abi}.pyc
 /opt/cross/share/%{crosstarget}-gdb/system-gdbinit/wrs-linux.py
-/opt/cross/share/%{crosstarget}-gdb/system-gdbinit/__pycache__/wrs-linux.cpython-37.opt-1.pyc
-/opt/cross/share/%{crosstarget}-gdb/system-gdbinit/__pycache__/wrs-linux.cpython-37.pyc
+/opt/cross/share/%{crosstarget}-gdb/system-gdbinit/__pycache__/wrs-linux.cpython-%{__python_abi}.opt-1.pyc
+/opt/cross/share/%{crosstarget}-gdb/system-gdbinit/__pycache__/wrs-linux.cpython-%{__python_abi}.pyc
 
 %if "%{ctarch}" == "aarch64-meego-linux-gnu__aarch64" || "%{ctarch}" == "i486-meego-linux-gnu__i386" || "%{ctarch}" == "armv7hl-meego-linux-gnueabi__arm"
 /opt/cross/bin/gcore
