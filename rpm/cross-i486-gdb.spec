@@ -143,7 +143,7 @@ rm -r "%{buildroot}%{_mandir}/"
 %{_bindir}/gdb-add-index
 %{_datadir}/gdb
 %if "%{_arch}" == "aarch64"
-/usr/lib/libinproctrace.so
+%{_libdir}/libinproctrace.so
 %endif
 
 
@@ -230,7 +230,7 @@ fi
 %endif
 
 %if "%{ctarch}" == "aarch64-meego-linux-gnu__aarch64" || "%{ctarch}" == "i486-meego-linux-gnu__i386"
-/opt/cross/lib/libinproctrace.so
+/opt/cross/%{_lib}/libinproctrace.so
 %endif
 
 %endif # crosstarget
