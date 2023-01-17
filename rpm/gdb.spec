@@ -9,9 +9,8 @@ Name:       gdb
 %endif
 
 Summary:    A GNU source-level debugger for C, C++, Java and other languages
-Version:    8.2.1
+Version:    12.1.0
 Release:    1
-Group:      Development/Debuggers
 License:    GPLv3+
 URL:        http://gnu.org/software/gdb/
 Source0:    %{name}-%{version}.tar.bz2
@@ -34,6 +33,7 @@ BuildRequires:  gettext
 BuildRequires:  flex
 BuildRequires:  bison
 BuildRequires:  expat-devel
+BuildRequires:  gmp-devel
 BuildRequires:  python3-devel
 BuildRequires:  libstdc++
 BuildRequires:  zlib-devel
@@ -105,6 +105,7 @@ export CFLAGS="$RPM_OPT_FLAGS"
     --disable-gas                                           \
     --disable-sim                                           \
     --disable-gprof                                         \
+    --disable-gprofng                                       \
     %{_target_platform}
 
 make %{?_smp_mflags}
@@ -125,6 +126,7 @@ chmod 755 "%{buildroot}%{_bindir}/gcore"
 mkdir -p "%{buildroot}%{_docdir}/%{name}-%{version}"
 install -m 0644 -t "%{buildroot}%{_docdir}/%{name}-%{version}" README gdb/NEWS
 rm "%{buildroot}%{_infodir}"/bfd*
+rm -f "%{buildroot}%{_infodir}"/ctf-spec*
 %else
 rm -r "%{buildroot}%{_infodir}/"
 rm -r "%{buildroot}%{_mandir}/"
@@ -176,7 +178,6 @@ machine than the one which is running the program being debugged.
 
 %package doc
 Summary:   Documentation for %{name}
-Group:     Documentation
 Requires:  %{name} = %{version}-%{release}
 Requires(post): /sbin/install-info
 Requires(postun): /sbin/install-info

@@ -10,9 +10,20 @@ Subject: [PATCH 5/5] gdb-6.6-buildid-locate-rpm-suse
 
 diff --git a/gdb/build-id.c b/gdb/build-id.c
 index 4e1477e950..7bc8eddf58 100644
---- a/gdb/build-id.c
-+++ b/gdb/build-id.c
-@@ -806,9 +806,9 @@ missing_rpm_enlist (const char *filename)
+--- gdb-9.1.orig/gdb/build-id.c
++++ gdb-9.1/gdb/build-id.c
+@@ -861,19 +861,17 @@ missing_rpm_enlist_1 (const char *filena
+ #endif
+ 	{
+ 	  Header h;
+-	  char *debuginfo, **slot, *s, *s2;
++	  char *debuginfo, **slot;
+ 	  errmsg_t err;
+-	  size_t srcrpmlen = sizeof (".src.rpm") - 1;
+-	  size_t debuginfolen = sizeof ("-debuginfo") - 1;
+ 	  rpmdbMatchIterator mi_debuginfo;
+ 
+ 	  h = rpmdbNextIterator_p (mi);
  	  if (h == NULL)
  	    break;
  
@@ -25,7 +36,7 @@ index 4e1477e950..7bc8eddf58 100644
  				      &err);
  	  if (!debuginfo)
  	    {
-@@ -816,60 +816,19 @@ missing_rpm_enlist (const char *filename)
+@@ -881,60 +879,19 @@ missing_rpm_enlist_1 (const char *filena
  	               err);
  	      continue;
  	    }
@@ -88,42 +99,35 @@ index 4e1477e950..7bc8eddf58 100644
  	  /* Base package name for `debuginfo-install'.  We do not use the
  	     `yum' command directly as the line
  		 yum --enablerepo='*debug*' install NAME-debuginfo.ARCH
-@@ -955,9 +914,11 @@ missing_rpm_list_print (void)
+@@ -1076,10 +1033,7 @@ missing_rpm_list_print (void)
+   missing_rpm_list_entries = 0;
  
    printf_unfiltered (_("Missing separate debuginfos, use: %s"),
- #ifdef DNF_DEBUGINFO_INSTALL
+-#ifdef DNF_DEBUGINFO_INSTALL
 -		     "dnf "
-+		     "dnf debuginfo-"
-+#else
-+		     "zypper "
- #endif
+-#endif
 -		     "debuginfo-install");
-+		     "install");
-   for (array_iter = array; array_iter < array + missing_rpm_list_entries;
-        array_iter++)
++		     "zypper install");
+   for (const char *el : array)
      {
-@@ -1170,13 +1131,18 @@ debug_print_missing (const char *binary, const char *debug)
+       puts_unfiltered (" ");
+@@ -1287,13 +1241,12 @@ debug_print_missing (const char *binary,
  	fprintf_unfiltered (gdb_stdlog,
  			    _("Missing separate debuginfo for %s\n"), binary);
          if (debug != NULL)
 -	  fprintf_unfiltered (gdb_stdlog, _("Try: %s %s\n"),
- #ifdef DNF_DEBUGINFO_INSTALL
-+	  fprintf_unfiltered (gdb_stdlog, _("Try: %s %s\n"),
- 			      "dnf"
-+			      " --enablerepo='*debug*' install", debug);
- #else
+-#ifdef DNF_DEBUGINFO_INSTALL
+-			      "dnf"
+-#else
 -			      "yum"
-+	{
-+	  const char *p = strrchr (debug, '/');
-+	  fprintf_unfiltered (gdb_stdlog, _("Try: %s%.2s%.38s\"\n"),
-+			      "zypper install -C \"debuginfo(build-id)=",
-+			      p - 2, p + 1);
-+	}
- #endif
+-#endif
 -			      " --enablerepo='*debug*' install", debug);
++	  {
++	    const char *p = strrchr (debug, '/');
++	    fprintf_unfiltered (gdb_stdlog, _("Try: %s%.2s%.38s\"\n"),
++				"zypper install -C \"debuginfo(build-id)=",
++				p - 2, p + 1);
++	  }
        }
  }
  
--- 
-2.17.1
-

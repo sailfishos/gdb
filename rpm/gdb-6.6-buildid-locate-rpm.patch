@@ -1,22 +1,11 @@
-From 3ab20b152af583da1c43dfe9635af78c7bf2a304 Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?Aapi=20H=C3=A4m=C3=A4l=C3=A4inen?=
- <aapi.hamalainen@jollamobile.com>
-Date: Wed, 27 Mar 2019 11:34:19 +0200
-Subject: [PATCH 3/5] gdb-6.6-buildid-locate-rpm
+From FEDORA_PATCHES Mon Sep 17 00:00:00 2001
+From: Fedora GDB patches <invalid@email.com>
+Date: Fri, 27 Oct 2017 21:07:50 +0200
+Subject: gdb-6.6-buildid-locate-rpm.patch
 
----
- gdb/aclocal.m4   | 216 ++++++++++++++++++++
- gdb/build-id.c   | 407 ++++++++++++++++++++++++++++++++++++-
- gdb/config.in    |   6 +
- gdb/configure    | 508 +++++++++++++++++++++++++++++++++++++++++++++++
- gdb/configure.ac | 193 ++++++++++++++++++
- gdb/corelow.c    |   2 +-
- gdb/event-top.c  |   8 +-
- gdb/symfile.h    |   2 +
- 8 files changed, 1332 insertions(+), 10 deletions(-)
+;;=push+jan
 
 diff --git a/gdb/aclocal.m4 b/gdb/aclocal.m4
-index 110b416e61..a0edc50f5f 100644
 --- a/gdb/aclocal.m4
 +++ b/gdb/aclocal.m4
 @@ -11,7 +11,223 @@
@@ -25,7 +14,7 @@ index 110b416e61..a0edc50f5f 100644
  
 +# pkg.m4 - Macros to locate and utilise pkg-config.            -*- Autoconf -*-
 +# serial 1 (pkg-config-0.24)
-+# 
++#
 +# Copyright © 2004 Scott James Remnant <scott@netsplit.com>.
 +#
 +# This program is free software; you can redistribute it and/or modify
@@ -144,11 +133,11 @@ index 110b416e61..a0edc50f5f 100644
 +See the pkg-config man page for more details.])
 +
 +if test $pkg_failed = yes; then
-+   	AC_MSG_RESULT([no])
++        AC_MSG_RESULT([no])
 +        _PKG_SHORT_ERRORS_SUPPORTED
 +        if test $_pkg_short_errors_supported = yes; then
 +	        $1[]_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "$2" 2>&1`
-+        else 
++        else
 +	        $1[]_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "$2" 2>&1`
 +        fi
 +	# Put the nasty error message in config.log where it belongs
@@ -165,7 +154,7 @@ index 110b416e61..a0edc50f5f 100644
 +_PKG_TEXT])[]dnl
 +        ])
 +elif test $pkg_failed = untried; then
-+     	AC_MSG_RESULT([no])
++        AC_MSG_RESULT([no])
 +	m4_default([$4], [AC_MSG_FAILURE(
 +[The pkg-config script could not be found or is too old.  Make sure it
 +is in your PATH or set the PKG_CONFIG environment variable to the full
@@ -243,459 +232,12 @@ index 110b416e61..a0edc50f5f 100644
  # AM_AUX_DIR_EXPAND                                         -*- Autoconf -*-
  
  # Copyright (C) 2001-2017 Free Software Foundation, Inc.
-diff --git a/gdb/build-id.c b/gdb/build-id.c
-index 7b9cbca14e..39e741cf58 100644
---- a/gdb/build-id.c
-+++ b/gdb/build-id.c
-@@ -35,6 +35,8 @@
- #include "elf/common.h"
- #include "elf-bfd.h"
- #include <sys/stat.h>
-+#include "elf/external.h"
-+#include "inferior.h"
- 
- #define BUILD_ID_VERBOSE_NONE 0
- #define BUILD_ID_VERBOSE_FILENAMES 1
-@@ -640,8 +642,366 @@ build_id_to_filename (const struct bfd_build_id *build_id, char **link_return)
-   return result;
- }
- 
-+#ifdef HAVE_LIBRPM
-+
-+#include <rpm/rpmlib.h>
-+#include <rpm/rpmts.h>
-+#include <rpm/rpmdb.h>
-+#include <rpm/header.h>
-+#ifdef DLOPEN_LIBRPM
-+#include <dlfcn.h>
-+#endif
-+
-+/* This MISSING_RPM_HASH tracker is used to collect all the missing rpm files
-+   and avoid their duplicities during a single inferior run.  */
-+
-+static struct htab *missing_rpm_hash;
-+
-+/* This MISSING_RPM_LIST tracker is used to collect and print as a single line
-+   all the rpms right before the nearest GDB prompt.  It gets cleared after
-+   each such print (it is questionable if we should clear it after the print).
-+   */
-+
-+struct missing_rpm
-+  {
-+    struct missing_rpm *next;
-+    char rpm[1];
-+  };
-+static struct missing_rpm *missing_rpm_list;
-+static int missing_rpm_list_entries;
-+
-+/* Returns the count of newly added rpms.  */
-+
-+static int
-+missing_rpm_enlist (const char *filename)
-+{
-+  static int rpm_init_done = 0;
-+  rpmts ts;
-+  rpmdbMatchIterator mi;
-+  int count = 0;
-+
-+#ifdef DLOPEN_LIBRPM
-+  /* Duplicate here the declarations to verify they match.  The same sanity
-+     check is present also in `configure.ac'.  */
-+  extern char * headerFormat(Header h, const char * fmt, errmsg_t * errmsg);
-+  static char *(*headerFormat_p) (Header h, const char * fmt, errmsg_t *errmsg);
-+  extern int rpmReadConfigFiles(const char * file, const char * target);
-+  static int (*rpmReadConfigFiles_p) (const char * file, const char * target);
-+  extern rpmdbMatchIterator rpmdbFreeIterator(rpmdbMatchIterator mi);
-+  static rpmdbMatchIterator (*rpmdbFreeIterator_p) (rpmdbMatchIterator mi);
-+  extern Header rpmdbNextIterator(rpmdbMatchIterator mi);
-+  static Header (*rpmdbNextIterator_p) (rpmdbMatchIterator mi);
-+  extern rpmts rpmtsCreate(void);
-+  static rpmts (*rpmtsCreate_p) (void);
-+  extern rpmts rpmtsFree(rpmts ts);
-+  static rpmts (*rpmtsFree_p) (rpmts ts);
-+  extern rpmdbMatchIterator rpmtsInitIterator(const rpmts ts, rpmTag rpmtag,
-+                                              const void * keyp, size_t keylen);
-+  static rpmdbMatchIterator (*rpmtsInitIterator_p) (const rpmts ts,
-+						    rpmTag rpmtag,
-+						    const void *keyp,
-+						    size_t keylen);
-+#else	/* !DLOPEN_LIBRPM */
-+# define headerFormat_p headerFormat
-+# define rpmReadConfigFiles_p rpmReadConfigFiles
-+# define rpmdbFreeIterator_p rpmdbFreeIterator
-+# define rpmdbNextIterator_p rpmdbNextIterator
-+# define rpmtsCreate_p rpmtsCreate
-+# define rpmtsFree_p rpmtsFree
-+# define rpmtsInitIterator_p rpmtsInitIterator
-+#endif	/* !DLOPEN_LIBRPM */
-+
-+  gdb_assert (filename != NULL);
-+
-+  if (strcmp (filename, BUILD_ID_MAIN_EXECUTABLE_FILENAME) == 0)
-+    return 0;
-+
-+  if (is_target_filename (filename))
-+    return 0;
-+
-+  if (filename[0] != '/')
-+    {
-+      warning (_("Ignoring non-absolute filename: <%s>"), filename);
-+      return 0;
-+    }
-+
-+  if (!rpm_init_done)
-+    {
-+      static int init_tried;
-+
-+      /* Already failed the initialization before?  */
-+      if (init_tried)
-+      	return 0;
-+      init_tried = 1;
-+
-+#ifdef DLOPEN_LIBRPM
-+      {
-+	void *h;
-+
-+	h = dlopen (DLOPEN_LIBRPM, RTLD_LAZY);
-+	if (!h)
-+	  {
-+	    warning (_("Unable to open \"%s\" (%s), "
-+		      "missing debuginfos notifications will not be displayed"),
-+		     DLOPEN_LIBRPM, dlerror ());
-+	    return 0;
-+	  }
-+
-+	if (!((headerFormat_p = (char *(*) (Header h, const char * fmt, errmsg_t *errmsg)) dlsym (h, "headerFormat"))
-+	      && (rpmReadConfigFiles_p = (int (*) (const char * file, const char * target)) dlsym (h, "rpmReadConfigFiles"))
-+	      && (rpmdbFreeIterator_p = (rpmdbMatchIterator (*) (rpmdbMatchIterator mi)) dlsym (h, "rpmdbFreeIterator"))
-+	      && (rpmdbNextIterator_p = (Header (*) (rpmdbMatchIterator mi)) dlsym (h, "rpmdbNextIterator"))
-+	      && (rpmtsCreate_p = (rpmts (*) (void)) dlsym (h, "rpmtsCreate"))
-+	      && (rpmtsFree_p = (rpmts (*) (rpmts ts)) dlsym (h, "rpmtsFree"))
-+	      && (rpmtsInitIterator_p = (rpmdbMatchIterator (*) (const rpmts ts, rpmTag rpmtag, const void *keyp, size_t keylen)) dlsym (h, "rpmtsInitIterator"))))
-+	  {
-+	    warning (_("Opened library \"%s\" is incompatible (%s), "
-+		      "missing debuginfos notifications will not be displayed"),
-+		     DLOPEN_LIBRPM, dlerror ());
-+	    if (dlclose (h))
-+	      warning (_("Error closing library \"%s\": %s\n"), DLOPEN_LIBRPM,
-+		       dlerror ());
-+	    return 0;
-+	  }
-+      }
-+#endif	/* DLOPEN_LIBRPM */
-+
-+      if (rpmReadConfigFiles_p (NULL, NULL) != 0)
-+	{
-+	  warning (_("Error reading the rpm configuration files"));
-+	  return 0;
-+	}
-+
-+      rpm_init_done = 1;
-+    }
-+
-+  ts = rpmtsCreate_p ();
-+
-+  mi = rpmtsInitIterator_p (ts, RPMTAG_BASENAMES, filename, 0);
-+  if (mi != NULL)
-+    {
-+      for (;;)
-+	{
-+	  Header h;
-+	  char *debuginfo, **slot, *s, *s2;
-+	  errmsg_t err;
-+	  size_t srcrpmlen = sizeof (".src.rpm") - 1;
-+	  size_t debuginfolen = sizeof ("-debuginfo") - 1;
-+	  rpmdbMatchIterator mi_debuginfo;
-+
-+	  h = rpmdbNextIterator_p (mi);
-+	  if (h == NULL)
-+	    break;
-+
-+	  /* Verify the debuginfo file is not already installed.  */
-+
-+	  debuginfo = headerFormat_p (h, "%{sourcerpm}-debuginfo.%{arch}",
-+				      &err);
-+	  if (!debuginfo)
-+	    {
-+	      warning (_("Error querying the rpm file `%s': %s"), filename,
-+	               err);
-+	      continue;
-+	    }
-+	  /* s = `.src.rpm-debuginfo.%{arch}' */
-+	  s = strrchr (debuginfo, '-') - srcrpmlen;
-+	  s2 = NULL;
-+	  if (s > debuginfo && memcmp (s, ".src.rpm", srcrpmlen) == 0)
-+	    {
-+	      /* s2 = `-%{release}.src.rpm-debuginfo.%{arch}' */
-+	      s2 = (char *) memrchr (debuginfo, '-', s - debuginfo);
-+	    }
-+	  if (s2)
-+	    {
-+	      /* s2 = `-%{version}-%{release}.src.rpm-debuginfo.%{arch}' */
-+	      s2 = (char *) memrchr (debuginfo, '-', s2 - debuginfo);
-+	    }
-+	  if (!s2)
-+	    {
-+	      warning (_("Error querying the rpm file `%s': %s"), filename,
-+	               debuginfo);
-+	      xfree (debuginfo);
-+	      continue;
-+	    }
-+	  /* s = `.src.rpm-debuginfo.%{arch}' */
-+	  /* s2 = `-%{version}-%{release}.src.rpm-debuginfo.%{arch}' */
-+	  memmove (s2 + debuginfolen, s2, s - s2);
-+	  memcpy (s2, "-debuginfo", debuginfolen);
-+	  /* s = `XXXX.%{arch}' */
-+	  /* strlen ("XXXX") == srcrpmlen + debuginfolen */
-+	  /* s2 = `-debuginfo-%{version}-%{release}XX.%{arch}' */
-+	  /* strlen ("XX") == srcrpmlen */
-+	  memmove (s + debuginfolen, s + srcrpmlen + debuginfolen,
-+		   strlen (s + srcrpmlen + debuginfolen) + 1);
-+	  /* s = `-debuginfo-%{version}-%{release}.%{arch}' */
-+
-+	  /* RPMDBI_PACKAGES requires keylen == sizeof (int).  */
-+	  /* RPMDBI_LABEL is an interface for NVR-based dbiFindByLabel().  */
-+	  mi_debuginfo = rpmtsInitIterator_p (ts, (rpmTag) RPMDBI_LABEL, debuginfo, 0);
-+	  xfree (debuginfo);
-+	  if (mi_debuginfo)
-+	    {
-+	      rpmdbFreeIterator_p (mi_debuginfo);
-+	      count = 0;
-+	      break;
-+	    }
-+
-+	  /* The allocated memory gets utilized below for MISSING_RPM_HASH.  */
-+	  debuginfo = headerFormat_p (h,
-+				      "%{name}-%{version}-%{release}.%{arch}",
-+				      &err);
-+	  if (!debuginfo)
-+	    {
-+	      warning (_("Error querying the rpm file `%s': %s"), filename,
-+	               err);
-+	      continue;
-+	    }
-+
-+	  /* Base package name for `debuginfo-install'.  We do not use the
-+	     `yum' command directly as the line
-+		 yum --enablerepo='*debug*' install NAME-debuginfo.ARCH
-+	     would be more complicated than just:
-+		 debuginfo-install NAME-VERSION-RELEASE.ARCH
-+	     Do not supply the rpm base name (derived from .src.rpm name) as
-+	     debuginfo-install is unable to install the debuginfo package if
-+	     the base name PKG binary rpm is not installed while for example
-+	     PKG-libs would be installed (RH Bug 467901).
-+	     FUTURE: After multiple debuginfo versions simultaneously installed
-+	     get supported the support for the VERSION-RELEASE tags handling
-+	     may need an update.  */
-+
-+	  if (missing_rpm_hash == NULL)
-+	    {
-+	      /* DEL_F is passed NULL as MISSING_RPM_LIST's HTAB_DELETE
-+		 should not deallocate the entries.  */
-+
-+	      missing_rpm_hash = htab_create_alloc (64, htab_hash_string,
-+			       (int (*) (const void *, const void *)) streq,
-+						    NULL, xcalloc, xfree);
-+	    }
-+	  slot = (char **) htab_find_slot (missing_rpm_hash, debuginfo, INSERT);
-+	  /* XCALLOC never returns NULL.  */
-+	  gdb_assert (slot != NULL);
-+	  if (*slot == NULL)
-+	    {
-+	      struct missing_rpm *missing_rpm;
-+
-+	      *slot = debuginfo;
-+
-+	      missing_rpm = (struct missing_rpm *) xmalloc (sizeof (*missing_rpm) + strlen (debuginfo));
-+	      strcpy (missing_rpm->rpm, debuginfo);
-+	      missing_rpm->next = missing_rpm_list;
-+	      missing_rpm_list = missing_rpm;
-+	      missing_rpm_list_entries++;
-+	    }
-+	  else
-+	    xfree (debuginfo);
-+	  count++;
-+	}
-+
-+      rpmdbFreeIterator_p (mi);
-+    }
-+
-+  rpmtsFree_p (ts);
-+
-+  return count;
-+}
-+
-+static int
-+missing_rpm_list_compar (const char *const *ap, const char *const *bp)
-+{
-+  return strcoll (*ap, *bp);
-+}
-+
-+/* It returns a NULL-terminated array of strings needing to be FREEd.  It may
-+   also return only NULL.  */
-+
-+static void
-+missing_rpm_list_print (void)
-+{
-+  char **array, **array_iter;
-+  struct missing_rpm *list_iter;
-+  struct cleanup *cleanups;
-+
-+  if (missing_rpm_list_entries == 0)
-+    return;
-+
-+  array = (char **) xmalloc (sizeof (*array) * missing_rpm_list_entries);
-+  cleanups = make_cleanup (xfree, array);
-+
-+  array_iter = array;
-+  for (list_iter = missing_rpm_list; list_iter != NULL;
-+       list_iter = list_iter->next)
-+    {
-+      *array_iter++ = list_iter->rpm;
-+    }
-+  gdb_assert (array_iter == array + missing_rpm_list_entries);
-+
-+  qsort (array, missing_rpm_list_entries, sizeof (*array),
-+	 (int (*) (const void *, const void *)) missing_rpm_list_compar);
-+
-+  printf_unfiltered (_("Missing separate debuginfos, use: %s"),
-+#ifdef DNF_DEBUGINFO_INSTALL
-+		     "dnf "
-+#endif
-+		     "debuginfo-install");
-+  for (array_iter = array; array_iter < array + missing_rpm_list_entries;
-+       array_iter++)
-+    {
-+      putchar_unfiltered (' ');
-+      puts_unfiltered (*array_iter);
-+    }
-+  putchar_unfiltered ('\n');
-+
-+  while (missing_rpm_list != NULL)
-+    {
-+      list_iter = missing_rpm_list;
-+      missing_rpm_list = list_iter->next;
-+      xfree (list_iter);
-+    }
-+  missing_rpm_list_entries = 0;
-+
-+  do_cleanups (cleanups);
-+}
-+
-+static void
-+missing_rpm_change (void)
-+{
-+  debug_flush_missing ();
-+
-+  gdb_assert (missing_rpm_list == NULL);
-+  if (missing_rpm_hash != NULL)
-+    {
-+      htab_delete (missing_rpm_hash);
-+      missing_rpm_hash = NULL;
-+    }
-+}
-+
-+enum missing_exec
-+  {
-+    /* Init state.  EXEC_BFD also still could be NULL.  */
-+    MISSING_EXEC_NOT_TRIED,
-+    /* We saw a non-NULL EXEC_BFD but RPM has no info about it.  */
-+    MISSING_EXEC_NOT_FOUND,
-+    /* We found EXEC_BFD by RPM and we either have its symbols (either embedded
-+       or separate) or the main executable's RPM is now contained in
-+       MISSING_RPM_HASH.  */
-+    MISSING_EXEC_ENLISTED
-+  };
-+static enum missing_exec missing_exec = MISSING_EXEC_NOT_TRIED;
-+
-+#endif	/* HAVE_LIBRPM */
-+
-+void
-+debug_flush_missing (void)
-+{
-+#ifdef HAVE_LIBRPM
-+  missing_rpm_list_print ();
-+#endif
-+}
-+
- /* This MISSING_FILEPAIR_HASH tracker is used only for the duplicite messages
--     Try to install the hash file ...
-+     yum --enablerepo='*debug*' install ...
-    avoidance.  */
- 
- struct missing_filepair
-@@ -695,11 +1055,17 @@ missing_filepair_change (void)
-       /* All their memory came just from missing_filepair_OBSTACK.  */
-       missing_filepair_hash = NULL;
-     }
-+#ifdef HAVE_LIBRPM
-+  missing_exec = MISSING_EXEC_NOT_TRIED;
-+#endif
- }
- 
- static void
- debug_print_executable_changed (void)
- {
-+#ifdef HAVE_LIBRPM
-+  missing_rpm_change ();
-+#endif
-   missing_filepair_change ();
- }
- 
-@@ -766,14 +1132,39 @@ debug_print_missing (const char *binary, const char *debug)
- 
-   *slot = missing_filepair;
- 
--  /* We do not collect and flush these messages as each such message
--     already requires its own separate lines.  */
-+#ifdef HAVE_LIBRPM
-+  if (missing_exec == MISSING_EXEC_NOT_TRIED)
-+    {
-+      char *execfilename;
- 
--  fprintf_unfiltered (gdb_stdlog,
--		      _("Missing separate debuginfo for %s\n"), binary);
--  if (debug != NULL)
--    fprintf_unfiltered (gdb_stdlog, _("Try to install the hash file %s\n"),
--			debug);
-+      execfilename = get_exec_file (0);
-+      if (execfilename != NULL)
-+	{
-+	  if (missing_rpm_enlist (execfilename) == 0)
-+	    missing_exec = MISSING_EXEC_NOT_FOUND;
-+	  else
-+	    missing_exec = MISSING_EXEC_ENLISTED;
-+	}
-+    }
-+  if (missing_exec != MISSING_EXEC_ENLISTED)
-+    if ((binary[0] == 0 || missing_rpm_enlist (binary) == 0)
-+	&& (debug == NULL || missing_rpm_enlist (debug) == 0))
-+#endif	/* HAVE_LIBRPM */
-+      {
-+	/* We do not collect and flush these messages as each such message
-+	   already requires its own separate lines.  */
-+
-+	fprintf_unfiltered (gdb_stdlog,
-+			    _("Missing separate debuginfo for %s\n"), binary);
-+        if (debug != NULL)
-+	  fprintf_unfiltered (gdb_stdlog, _("Try: %s %s\n"),
-+#ifdef DNF_DEBUGINFO_INSTALL
-+			      "dnf"
-+#else
-+			      "yum"
-+#endif
-+			      " --enablerepo='*debug*' install", debug);
-+      }
- }
- 
- /* See build-id.h.  */
 diff --git a/gdb/config.in b/gdb/config.in
-index 527290296e..8476273ae2 100644
 --- a/gdb/config.in
 +++ b/gdb/config.in
-@@ -33,6 +33,9 @@
- /* Define to BFD's default target vector. */
- #undef DEFAULT_BFD_VEC
+@@ -39,6 +39,9 @@
+ /* Handle .ctf type-info sections */
+ #undef ENABLE_LIBCTF
  
 +/* librpm version specific library name to dlopen. */
 +#undef DLOPEN_LIBRPM
@@ -703,9 +245,9 @@ index 527290296e..8476273ae2 100644
  /* Define to 1 if translation of program messages to the user's native
     language is requested. */
  #undef ENABLE_NLS
-@@ -270,6 +273,9 @@
- /* Define if Python 2.7 is being used. */
- #undef HAVE_LIBPYTHON2_7
+@@ -259,6 +262,9 @@
+ /* Define if you have the mpfr library. */
+ #undef HAVE_LIBMPFR
  
 +/* Define if librpm library is being used. */
 +#undef HAVE_LIBRPM
@@ -714,12 +256,11 @@ index 527290296e..8476273ae2 100644
  #undef HAVE_LIBUNWIND_IA64_H
  
 diff --git a/gdb/configure b/gdb/configure
-index 28756ed982..f8810d9c26 100755
 --- a/gdb/configure
 +++ b/gdb/configure
-@@ -749,6 +749,11 @@ CODESIGN_CERT
- HAVE_NATIVE_GCORE_TARGET
- TARGET_OBS
+@@ -775,6 +775,11 @@ TARGET_OBS
+ ENABLE_BFD_64_BIT_FALSE
+ ENABLE_BFD_64_BIT_TRUE
  subdirs
 +RPM_LIBS
 +RPM_CFLAGS
@@ -729,50 +270,42 @@ index 28756ed982..f8810d9c26 100755
  GDB_DATADIR
  DEBUGDIR
  MAKEINFO_EXTRA_FLAGS
-@@ -853,6 +858,7 @@ with_gdb_datadir
+@@ -880,6 +885,7 @@ with_gdb_datadir
  with_relocated_sources
  with_auto_load_dir
  with_auto_load_safe_path
 +with_rpm
  enable_targets
  enable_64_bit_bfd
- enable_gdbcli
-@@ -912,6 +918,11 @@ CCC
- CPP
- MAKEINFO
- MAKEINFOFLAGS
-+PKG_CONFIG
-+PKG_CONFIG_PATH
-+PKG_CONFIG_LIBDIR
+ enable_gdbmi
+@@ -959,6 +965,8 @@ PKG_CONFIG_PATH
+ PKG_CONFIG_LIBDIR
+ DEBUGINFOD_CFLAGS
+ DEBUGINFOD_LIBS
 +RPM_CFLAGS
 +RPM_LIBS
  YACC
  YFLAGS
  XMKMF'
-@@ -1583,6 +1594,8 @@ Optional Packages:
-                           [--with-auto-load-dir]
-   --without-auto-load-safe-path
+@@ -1635,6 +1643,8 @@ Optional Packages:
                            do not restrict auto-loaded files locations
+   --with-debuginfod       Enable debuginfo lookups with debuginfod
+                           (auto/yes/no)
 +  --with-rpm              query rpm database for missing debuginfos (yes/no,
 +                          def. auto=librpm.so)
    --with-libunwind-ia64   use libunwind frame unwinding for ia64 targets
    --with-curses           use the curses library instead of the termcap
                            library
-@@ -1640,6 +1653,13 @@ Some influential environment variables:
-   MAKEINFO    Parent configure detects if it is of sufficient version.
-   MAKEINFOFLAGS
-               Parameters for MAKEINFO.
-+  PKG_CONFIG  path to pkg-config utility
-+  PKG_CONFIG_PATH
-+              directories to add to pkg-config's search path
-+  PKG_CONFIG_LIBDIR
-+              path overriding pkg-config's built-in search path
+@@ -1715,6 +1725,8 @@ Some influential environment variables:
+               C compiler flags for DEBUGINFOD, overriding pkg-config
+   DEBUGINFOD_LIBS
+               linker flags for DEBUGINFOD, overriding pkg-config
 +  RPM_CFLAGS  C compiler flags for RPM, overriding pkg-config
 +  RPM_LIBS    linker flags for RPM, overriding pkg-config
    YACC        The `Yet Another Compiler Compiler' implementation to use.
                Defaults to the first program found out of: `bison -y', `byacc',
                `yacc'.
-@@ -6575,6 +6595,494 @@ _ACEOF
+@@ -6634,6 +6646,494 @@ _ACEOF
  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $with_auto_load_safe_path" >&5
  $as_echo "$with_auto_load_safe_path" >&6; }
  
@@ -1164,7 +697,7 @@ index 28756ed982..f8810d9c26 100755
 +
 +
 +if test $pkg_failed = yes; then
-+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
++        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 +$as_echo "no" >&6; }
 +
 +if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -1182,7 +715,7 @@ index 28756ed982..f8810d9c26 100755
 +
 +	HAVE_LIBRPM=false
 +elif test $pkg_failed = untried; then
-+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
++        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 +$as_echo "no" >&6; }
 +	HAVE_LIBRPM=false
 +else
@@ -1268,10 +801,9 @@ index 28756ed982..f8810d9c26 100755
  
  subdirs="$subdirs testsuite"
 diff --git a/gdb/configure.ac b/gdb/configure.ac
-index 4c20ea5178..f7abb18af9 100644
 --- a/gdb/configure.ac
 +++ b/gdb/configure.ac
-@@ -166,6 +166,199 @@ AC_DEFINE_DIR(AUTO_LOAD_SAFE_PATH, escape_dir,
+@@ -153,6 +153,199 @@ AC_DEFINE_DIR(AUTO_LOAD_SAFE_PATH, escape_dir,
  	      [Directories safe to hold auto-loaded files.])
  AC_MSG_RESULT([$with_auto_load_safe_path])
  
@@ -1467,36 +999,22 @@ index 4c20ea5178..f7abb18af9 100644
 +    fi
 +  fi
 +fi
-+ 
++
  AC_CONFIG_SUBDIRS(testsuite)
  
  # Check whether to support alternative target configurations
-diff --git a/gdb/corelow.c b/gdb/corelow.c
-index f4e0ffa93b..76b230126a 100644
---- a/gdb/corelow.c
-+++ b/gdb/corelow.c
-@@ -366,7 +366,7 @@ build_id_locate_exec (int from_tty)
-         symfile_objfile->flags |= OBJF_BUILD_ID_CORE_LOADED;
-     }
-   else
--    debug_print_missing (_("the main executable file"), build_id_filename);
-+    debug_print_missing (BUILD_ID_MAIN_EXECUTABLE_FILENAME, build_id_filename);
- 
-   do_cleanups (back_to);
- 
 diff --git a/gdb/event-top.c b/gdb/event-top.c
-index 5852089f09..d9379b42c5 100644
 --- a/gdb/event-top.c
 +++ b/gdb/event-top.c
-@@ -40,6 +40,7 @@
- #include "buffer.h"
- #include "ser-event.h"
- #include "gdb_select.h"
+@@ -42,6 +42,7 @@
+ #include "gdbsupport/gdb-sigmask.h"
+ #include "async-event.h"
+ #include "bt-utils.h"
 +#include "symfile.h"
  
  /* readline include files.  */
  #include "readline/readline.h"
-@@ -359,6 +360,8 @@ display_gdb_prompt (const char *new_prompt)
+@@ -374,6 +375,8 @@ display_gdb_prompt (const char *new_prompt)
    /* Reset the nesting depth used when trace-commands is set.  */
    reset_command_nest_depth ();
  
@@ -1505,7 +1023,7 @@ index 5852089f09..d9379b42c5 100644
    /* Do not call the python hook on an explicit prompt change as
       passed to this function, as this forms a secondary/local prompt,
       IE, displayed but not set.  */
-@@ -774,7 +777,10 @@ command_line_handler (char *rl)
+@@ -800,7 +803,10 @@ command_line_handler (gdb::unique_xmalloc_ptr<char> &&rl)
        command_handler (cmd);
  
        if (ui->prompt_state != PROMPTED)
@@ -1518,18 +1036,13 @@ index 5852089f09..d9379b42c5 100644
  }
  
 diff --git a/gdb/symfile.h b/gdb/symfile.h
-index 43332f245f..1061799e35 100644
 --- a/gdb/symfile.h
 +++ b/gdb/symfile.h
-@@ -540,6 +540,8 @@ void map_symbol_filenames (symbol_filename_ftype *fun, void *data,
+@@ -342,6 +342,7 @@ extern void generic_load (const char *args, int from_tty);
  /* build-id support.  */
  extern struct bfd_build_id *build_id_addr_get (CORE_ADDR addr);
  extern void debug_print_missing (const char *binary, const char *debug);
 +extern void debug_flush_missing (void);
-+#define BUILD_ID_MAIN_EXECUTABLE_FILENAME _("the main executable file")
+ #define BUILD_ID_MAIN_EXECUTABLE_FILENAME _("the main executable file")
  
- /* From dwarf2read.c */
- 
--- 
-2.17.1
-
+ /* From minidebug.c.  */
