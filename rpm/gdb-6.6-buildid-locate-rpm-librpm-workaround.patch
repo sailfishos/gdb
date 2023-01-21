@@ -1,40 +1,12 @@
-From fffef888d98978f389ab9de979e51c0ed0a0aa12 Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?Aapi=20H=C3=A4m=C3=A4l=C3=A4inen?=
- <aapi.hamalainen@jollamobile.com>
-Date: Wed, 27 Mar 2019 11:34:23 +0200
-Subject: [PATCH 4/5] gdb-6.6-buildid-locate-rpm-librpm-workaround
+From FEDORA_PATCHES Mon Sep 17 00:00:00 2001
+From: Fedora GDB patches <invalid@email.com>
+Date: Fri, 27 Oct 2017 21:07:50 +0200
+Subject: gdb-6.6-buildid-locate-rpm-librpm-workaround.patch
 
----
- gdb/build-id.c        | 13 +++++++++++++
- gdb/proc-service.list |  3 +++
- 2 files changed, 16 insertions(+)
+;; Workaround librpm BZ 643031 due to its unexpected exit() calls (BZ 642879).
+;;=push+jan
 
-diff --git a/gdb/build-id.c b/gdb/build-id.c
-index 39e741cf58..4e1477e950 100644
---- a/gdb/build-id.c
-+++ b/gdb/build-id.c
-@@ -652,6 +652,19 @@ build_id_to_filename (const struct bfd_build_id *build_id, char **link_return)
- #include <dlfcn.h>
- #endif
- 
-+/* Workarodun https://bugzilla.redhat.com/show_bug.cgi?id=643031
-+   librpm must not exit() an application on SIGINT
-+
-+   Enable or disable a signal handler.  SIGNUM: signal to enable (or disable
-+   if negative).  HANDLER: sa_sigaction handler (or NULL to use
-+   rpmsqHandler()).  Returns: no. of refs, -1 on error.  */
-+extern int rpmsqEnable (int signum, /* rpmsqAction_t handler */ void *handler);
-+int
-+rpmsqEnable (int signum, /* rpmsqAction_t handler */ void *handler)
-+{
-+  return 0;
-+}
-+
- /* This MISSING_RPM_HASH tracker is used to collect all the missing rpm files
-    and avoid their duplicities during a single inferior run.  */
- 
 diff --git a/gdb/proc-service.list b/gdb/proc-service.list
-index 53f7ed8b1e..323f5e83c2 100644
 --- a/gdb/proc-service.list
 +++ b/gdb/proc-service.list
 @@ -37,4 +37,7 @@
@@ -45,6 +17,3 @@ index 53f7ed8b1e..323f5e83c2 100644
 +  /* gdb-6.6-buildid-locate-rpm.patch */
 +  rpmsqEnable;
  };
--- 
-2.17.1
-

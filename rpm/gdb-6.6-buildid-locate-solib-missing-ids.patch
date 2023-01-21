@@ -1,24 +1,20 @@
-From 8b88e654b877d0fb281959cafbd63c6825811ef3 Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?Aapi=20H=C3=A4m=C3=A4l=C3=A4inen?=
- <aapi.hamalainen@jollamobile.com>
-Date: Wed, 27 Mar 2019 11:34:19 +0200
-Subject: [PATCH 2/5] gdb-6.6-buildid-locate-solib-missing-ids
+From FEDORA_PATCHES Mon Sep 17 00:00:00 2001
+From: Fedora GDB patches <invalid@email.com>
+Date: Fri, 27 Oct 2017 21:07:50 +0200
+Subject: gdb-6.6-buildid-locate-solib-missing-ids.patch
 
----
- gdb/solib-svr4.c                              |  35 +++---
- .../gcore-buildid-exec-but-not-solib-lib.c    |  21 ++++
- .../gcore-buildid-exec-but-not-solib-main.c   |  25 +++++
- .../gcore-buildid-exec-but-not-solib.exp      | 105 ++++++++++++++++++
- 4 files changed, 167 insertions(+), 19 deletions(-)
- create mode 100644 gdb/testsuite/gdb.base/gcore-buildid-exec-but-not-solib-lib.c
- create mode 100644 gdb/testsuite/gdb.base/gcore-buildid-exec-but-not-solib-main.c
- create mode 100644 gdb/testsuite/gdb.base/gcore-buildid-exec-but-not-solib.exp
+;; Fix loading of core files without build-ids but with build-ids in executables.
+;; Load strictly build-id-checked core files only if no executable is specified
+;; (Jan Kratochvil, RH BZ 1339862).
+;;=push+jan
+
+gdb returns an incorrect back trace when applying a debuginfo
+https://bugzilla.redhat.com/show_bug.cgi?id=1339862
 
 diff --git a/gdb/solib-svr4.c b/gdb/solib-svr4.c
-index 4fa4c67725..85c7b6f779 100644
 --- a/gdb/solib-svr4.c
 +++ b/gdb/solib-svr4.c
-@@ -1358,14 +1358,27 @@ svr4_read_so_list (CORE_ADDR lm, CORE_ADDR prev_lm,
+@@ -1250,14 +1250,28 @@ svr4_read_so_list (svr4_info *info, CORE_ADDR lm, CORE_ADDR prev_lm,
  	}
  
        {
@@ -42,13 +38,14 @@ index 4fa4c67725..85c7b6f779 100644
 +	   not do any build-id checking of the libraries.  There may be missing
 +	   build-ids dumped in the core file and we would map all the libraries
 +	   to the only existing file loaded that time - the executable.  */
-+	if (symfile_objfile != NULL
-+	    && (symfile_objfile->flags & OBJF_BUILD_ID_CORE_LOADED) != 0)
++	if (current_program_space->symfile_object_file != NULL
++	    && (current_program_space->symfile_object_file->flags
++	         & OBJF_BUILD_ID_CORE_LOADED) != 0)
 +	  build_id = build_id_addr_get (li->l_ld);
  	if (build_id != NULL)
  	  {
  	    char *name, *build_id_filename;
-@@ -1380,23 +1393,7 @@ svr4_read_so_list (CORE_ADDR lm, CORE_ADDR prev_lm,
+@@ -1272,23 +1286,7 @@ svr4_read_so_list (svr4_info *info, CORE_ADDR lm, CORE_ADDR prev_lm,
  		xfree (name);
  	      }
  	    else
@@ -64,8 +61,8 @@ index 4fa4c67725..85c7b6f779 100644
 -		   instead) if the on-disk files no longer match the
 -		   running program version.  */
 -
--		if (symfile_objfile != NULL
--		    && (symfile_objfile->flags
+-		if (current_program_space->symfile_object_file != NULL
+-		    && (current_program_space->symfile_object_file->flags
 -			& OBJF_BUILD_ID_CORE_LOADED) != 0)
 -		  newobj->so_name[0] = 0;
 -	      }
@@ -75,7 +72,6 @@ index 4fa4c67725..85c7b6f779 100644
  	    xfree (build_id);
 diff --git a/gdb/testsuite/gdb.base/gcore-buildid-exec-but-not-solib-lib.c b/gdb/testsuite/gdb.base/gcore-buildid-exec-but-not-solib-lib.c
 new file mode 100644
-index 0000000000..d74b690c73
 --- /dev/null
 +++ b/gdb/testsuite/gdb.base/gcore-buildid-exec-but-not-solib-lib.c
 @@ -0,0 +1,21 @@
@@ -102,7 +98,6 @@ index 0000000000..d74b690c73
 +}
 diff --git a/gdb/testsuite/gdb.base/gcore-buildid-exec-but-not-solib-main.c b/gdb/testsuite/gdb.base/gcore-buildid-exec-but-not-solib-main.c
 new file mode 100644
-index 0000000000..46b9dfe161
 --- /dev/null
 +++ b/gdb/testsuite/gdb.base/gcore-buildid-exec-but-not-solib-main.c
 @@ -0,0 +1,25 @@
@@ -133,7 +128,6 @@ index 0000000000..46b9dfe161
 +}
 diff --git a/gdb/testsuite/gdb.base/gcore-buildid-exec-but-not-solib.exp b/gdb/testsuite/gdb.base/gcore-buildid-exec-but-not-solib.exp
 new file mode 100644
-index 0000000000..0c46489f31
 --- /dev/null
 +++ b/gdb/testsuite/gdb.base/gcore-buildid-exec-but-not-solib.exp
 @@ -0,0 +1,105 @@
@@ -242,6 +236,3 @@ index 0000000000..0c46489f31
 +
 +gdb_test "bt"
 +gdb_test "info shared"
--- 
-2.17.1
-
