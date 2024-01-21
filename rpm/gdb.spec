@@ -111,11 +111,11 @@ export CFLAGS="$RPM_OPT_FLAGS"
 make %{?_smp_mflags}
 make %{?_smp_mflags} info
 
-%clean
-rm -rf %{buildroot}
 
 %install
 %make_install
+
+find %{buildroot} -name \*.a -delete
 
 rm -r %{buildroot}%{_datadir}/locale/
 rm -r %{buildroot}%{_includedir}
