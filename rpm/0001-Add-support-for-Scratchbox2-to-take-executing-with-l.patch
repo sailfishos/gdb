@@ -1,0 +1,111 @@
+From f7fbb0f9219c0c5bcc8874483cc66266ea604139 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20Bidar?= <bjorn.bidar@thaodan.de>
+Date: Tue, 25 Feb 2025 08:01:53 +0200
+Subject: [PATCH] Add support for Scratchbox2 to take executing with ld.so inc
+ account
+
+* gdb/infrun.c (follow_exec):
+Wait for the second SIGTRAP if running inside a Scratchbox session so
+that we map to the binary instead of the ld.so which it uses to call
+the executable.
+* gdb/nat/fork-inferior.c (startup_inferior):
+Increase the level of pending executions to wait for one more
+execution before acting on the SIGTRAP when running inside a
+Scratchbox session.
+* gdbsupport/environ.cc (gdb_environ::from_host_environ):
+Set SBOX_SIGTRAP environment variable for Scratchbox when to know to
+interrupt.
+
+(cherry picked from commit e4c46861f3fa18f47ec459a396d92616ac34bc98)
+---
+ gdb/infrun.c            | 18 ++++++++++++++++++
+ gdb/nat/fork-inferior.c | 18 ++++++++++++++++++
+ gdbsupport/environ.cc   |  7 +++++++
+ 3 files changed, 43 insertions(+)
+
+diff --git a/gdb/infrun.c b/gdb/infrun.c
+index 2b6c1207391..bcd755f9695 100644
+--- a/gdb/infrun.c
++++ b/gdb/infrun.c
+@@ -1375,6 +1375,24 @@ follow_exec (ptid_t ptid, const char *exec_file_target)
+ 
+   gdb::observers::inferior_execd.notify (execing_inferior, following_inferior);
+ 
++  /* If an exec occured in the inferior while we are running under SB2
++   emulation mode, then first the kernel will deliver a SIGTRAP to
++   us, because of execing ld.so, then we wait for one more SIGTRAP
++   from libsb2.  After that, the binary is mapped and reinserting
++   breakpoints are safe. */
++  if (getenv("SBOX_SESSION_DIR") && *getenv("SBOX_SESSION_DIR") == '/') {
++    ptid_t resume_ptid;
++    struct target_waitstatus ws;
++
++    if (target_supports_multi_process ())
++      resume_ptid = ptid_t (inferior_ptid.pid ());
++    else
++      resume_ptid = minus_one_ptid;
++
++    target_resume (resume_ptid, false, GDB_SIGNAL_0);
++    target_wait (resume_ptid, &ws, 0);
++  }
++
+   breakpoint_re_set ();
+ 
+   /* Reinsert all breakpoints.  (Those which were symbolic have
+diff --git a/gdb/nat/fork-inferior.c b/gdb/nat/fork-inferior.c
+index c1082eb0441..6cc4b63b007 100644
+--- a/gdb/nat/fork-inferior.c
++++ b/gdb/nat/fork-inferior.c
+@@ -458,6 +458,15 @@ startup_inferior (process_stratum_target *proc_target, pid_t pid, int ntraps,
+       /* One trap extra for exec'ing the shell.  */
+       pending_execs++;
+     }
++  if (getenv("SBOX_SESSION_DIR") &&
++      *getenv("SBOX_SESSION_DIR") == '/')
++    {
++      /* Under sb2 -e, every exec("foobar") is replaced with an
++	 exec("ld-linux.so.2 foobar").  But we do not want to debug the
++	 dynamic linker, so we wait for libsb2 to do the second SIGTRAP,
++	 and we only stop then.  See environ.c too.  */
++      pending_execs++;
++    }
+ 
+   if (target_supports_multi_process ())
+     resume_ptid = ptid_t (pid);
+@@ -470,6 +479,15 @@ startup_inferior (process_stratum_target *proc_target, pid_t pid, int ntraps,
+   if (get_exec_wrapper () != NULL)
+     pending_execs++;
+ 
++  /* Under sb2 -e, every exec("foobar") is replaced with an
++   exec("ld-linux.so.2 foobar").  But we do not want to debug the
++   dynamic linker, so we wait for libsb2 to do the second SIGTRAP,
++   and we only stop then.  See environ.c too.  */
++  if (getenv("SBOX_SESSION_DIR") && *getenv("SBOX_SESSION_DIR") == '/')
++    /* FIXME: Should this be or plus something to take exec wrapper
++     into account.*/
++    pending_execs *= 2;
++
+   while (1)
+     {
+       enum gdb_signal resume_signal = GDB_SIGNAL_0;
+diff --git a/gdbsupport/environ.cc b/gdbsupport/environ.cc
+index 1b6ca61ee80..e979b3a459e 100644
+--- a/gdbsupport/environ.cc
++++ b/gdbsupport/environ.cc
+@@ -57,6 +57,13 @@ gdb_environ gdb_environ::from_host_environ ()
+ 				 xstrdup (environ[i]));
+     }
+ 
++  /* Under sb2 -e, every exec("foobar") is replaced with an
++     exec("ld-linux.so.2 foobar").  But we do not want to debug the
++     dynamic linker, so we have to request a second SIGTRAP from libsb2
++     initialization.  See fork-child.c too.  */
++  if (getenv ("SBOX_SESSION_DIR") && *getenv ("SBOX_SESSION_DIR") == '/')
++    e.set("SBOX_SIGTRAP", "");
++
+   return e;
+ }
+ 
+-- 
+2.45.2
+
