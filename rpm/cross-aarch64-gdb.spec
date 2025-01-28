@@ -13,7 +13,7 @@ Summary:    A GNU source-level debugger for C, C++, Java and other languages
 Version:    12.1.0
 Release:    1
 License:    GPLv3+
-URL:        http://gnu.org/software/gdb/
+URL:        https://github.com/sailfishos/gdb
 Source0:    %{name}-%{version}.tar.bz2
 Source1:    gdb-rpmlintrc
 Source2:    precheckin.sh
@@ -109,8 +109,8 @@ export CFLAGS="$RPM_OPT_FLAGS"
     --disable-gprofng                                       \
     %{_target_platform}
 
-make %{?_smp_mflags}
-make %{?_smp_mflags} info
+%make_build
+%make_build info
 
 
 %install
@@ -138,7 +138,6 @@ rm -r "%{buildroot}%{_mandir}/"
 #### NON-CROSS PACS
 
 %files
-%defattr(-,root,root,-)
 %license COPYING COPYING.LIB
 %{_bindir}/gcore
 %{_bindir}/gdb
@@ -170,7 +169,6 @@ machine than the one which is running the program being debugged.
 %endif
 
 %files gdbserver
-%defattr(-,root,root,-)
 %{_bindir}/gdbserver
 %ifarch %{ix86} x86_64
 %{_libdir}/libinproctrace.so
@@ -202,7 +200,6 @@ then
 fi
 
 %files doc
-%defattr(-,root,root,-)
 %{_mandir}/*/gdb.1*
 %{_mandir}/*/gdbserver.1*
 %{_mandir}/man1/gcore.1.gz
@@ -218,9 +215,8 @@ fi
 #### CROSS PACS
 
 %files
-%defattr(-,root,root,-)
 /opt/cross/share/%{crosstarget}-gdb
-%if "%{ctarch}" == "aarch64-meego-linux-gnu__aarch64" || "%{ctarch}" == "i486-meego-linux-gnu__i386" || "%{ctarch}" == "armv7hl-meego-linux-gnueabi__arm"
+%if "%{ctarch}" == "aarch64-meego-linux-gnu__aarch64" || "%{ctarch}" == "i486-meego-linux-gnu__i386" || "%{ctarch}" == "armv7hl-meego-linux-gnueabi__arm" || "%{ctarch}" == "x86_64-meego-linux-gnu__x86_64"
 /opt/cross/bin/gcore
 /opt/cross/bin/gdb
 /opt/cross/bin/gdb-add-index
@@ -230,7 +226,7 @@ fi
 /opt/cross/bin/%{crosstarget}-gdb-add-index
 %endif
 
-%if "%{ctarch}" == "aarch64-meego-linux-gnu__aarch64" || "%{ctarch}" == "i486-meego-linux-gnu__i386"
+%if "%{ctarch}" == "aarch64-meego-linux-gnu__aarch64" || "%{ctarch}" == "i486-meego-linux-gnu__i386" || "%{ctarch}" == "x86_64-meego-linux-gnu__x86_64"
 /opt/cross/%{_lib}/libinproctrace.so
 %endif
 
