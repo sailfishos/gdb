@@ -220,7 +220,7 @@ fi
 %files
 %defattr(-,root,root,-)
 /opt/cross/share/%{crosstarget}-gdb
-%if "%{ctarch}" == "aarch64-meego-linux-gnu__aarch64" || "%{ctarch}" == "i486-meego-linux-gnu__i386" || "%{ctarch}" == "armv7hl-meego-linux-gnueabi__arm"
+%if "%{ctarch}" == "aarch64-meego-linux-gnu__aarch64" || "%{ctarch}" == "i486-meego-linux-gnu__i386" || "%{ctarch}" == "armv7hl-meego-linux-gnueabi__arm" || "%{ctarch}" == "x86_64-meego-linux-gnu__x86_64"
 /opt/cross/bin/gcore
 /opt/cross/bin/gdb
 /opt/cross/bin/gdb-add-index
@@ -230,7 +230,7 @@ fi
 /opt/cross/bin/%{crosstarget}-gdb-add-index
 %endif
 
-%if "%{ctarch}" == "aarch64-meego-linux-gnu__aarch64" || "%{ctarch}" == "i486-meego-linux-gnu__i386"
+%if "%{ctarch}" == "aarch64-meego-linux-gnu__aarch64" || "%{ctarch}" == "i486-meego-linux-gnu__i386" || "%{ctarch}" == "x86_64-meego-linux-gnu__x86_64"
 /opt/cross/%{_lib}/libinproctrace.so
 %endif
 
