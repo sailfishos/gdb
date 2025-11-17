@@ -7,22 +7,36 @@ Name:       gdb
 %endif
 
 Summary:    A GNU source-level debugger for C, C++, Java and other languages
-Version:    12.1.0
+Version:    16.3.0
 Release:    1
 License:    GPLv3+
 URL:        https://github.com/sailfishos/gdb
 Source0:    %{name}-%{version}.tar.bz2
 Source1:    gdb-rpmlintrc
 
-# New locating of the matching binaries from the pure core file (build-id).
-Patch1: gdb-6.6-buildid-locate.patch
-# Fix loading of core files without build-ids but with build-ids in executables.
-Patch2: gdb-6.6-buildid-locate-solib-missing-ids.patch
-Patch3: gdb-6.6-buildid-locate-rpm.patch
-# Workaround librpm BZ 643031 due to its unexpected exit() calls (BZ 642879).
-Patch4: gdb-6.6-buildid-locate-rpm-librpm-workaround.patch
-Patch5: gdb-6.6-buildid-locate-rpm-suse.patch
-Patch6: system-gdbinit-missing-parentheses.patch
+# Update gdb-add-index.sh such that, when the GDB environment
+# variable is not set, the script is smarter than just looking for
+# 'gdb' in the $PATH.
+#
+# The actual search order is now: /usr/bin/gdb.minimal, gdb (in the
+# $PATH), then /usr/libexec/gdb.
+#
+# For the rationale of looking for gdb.minimal see:
+#
+#   https://fedoraproject.org/wiki/Changes/Minimal_GDB_in_buildroot
+#
+#=fedora
+Patch002: gdb-add-index.patch
+
+# Not a backport.  Add a new script which hooks into GDB and suggests
+# RPMs to install when GDB finds an objfile with no debug info.
+Patch003: gdb-rpm-suggestion-script.patch
+
+# Backport "Fix another timeout in gdb.base/bg-execution-repeat.exp"
+Patch004: gdb-fix-bg-execution-repeat.patch
+
+# Sailfish OS modifications to rpm suggestion script
+Patch005: gdb-rpm-suggestion-script-sailfishos.patch
 
 BuildRequires:  bison
 BuildRequires:  flex
@@ -31,10 +45,12 @@ BuildRequires:  libstdc++
 BuildRequires:  texinfo
 BuildRequires:  pkgconfig(expat)
 BuildRequires:  pkgconfig(gmp)
+BuildRequires:  pkgconfig(mpfr)
 BuildRequires:  pkgconfig(ncurses)
 BuildRequires:  pkgconfig(python3)
 BuildRequires:  pkgconfig(zlib)
 Requires:       python3-base
+Recommends:     rpm-python
 
 %description
 GDB, the GNU debugger, allows you to debug programs written in C, C++,
@@ -43,13 +59,7 @@ and printing their data.
 
 
 %prep
-%setup -q -n %{name}-%{version}/upstream
-%patch1 -p1
-%patch2 -p1
-%patch3 -p1
-%patch4 -p1
-%patch5 -p1
-%patch6 -p1
+%autosetup -p1 -n %{name}-%{version}/upstream
 
 cat > gdb/version.in << _FOO
 Sailfish OS (%{version})
@@ -124,6 +134,7 @@ mkdir -p "%{buildroot}%{_docdir}/%{name}-%{version}"
 install -m 0644 -t "%{buildroot}%{_docdir}/%{name}-%{version}" README gdb/NEWS
 rm "%{buildroot}%{_infodir}"/bfd*
 rm -f "%{buildroot}%{_infodir}"/ctf-spec*
+rm -f "%{buildroot}%{_infodir}"/sframe-spec*
 %else
 rm -r "%{buildroot}%{_infodir}/"
 rm -r "%{buildroot}%{_mandir}/"
@@ -183,6 +194,7 @@ fi
 %{_bindir}/gcore
 %{_bindir}/gdb
 %{_bindir}/gdb-add-index
+%{_bindir}/gstack
 %{_datadir}/gdb
 %if "%{_arch}" == "aarch64"
 %{_libdir}/libinproctrace.so
@@ -199,6 +211,7 @@ fi
 %{_mandir}/*/gdbserver.1*
 %{_mandir}/man1/gcore.1.gz
 %{_mandir}/man1/gdb-add-index.1.gz
+%{_mandir}/man1/gstack.1.gz
 %{_mandir}/man5/gdbinit.5.gz
 %{_infodir}/annotate.info.gz
 %{_infodir}/gdb.info.gz
@@ -217,9 +230,11 @@ fi
 /opt/cross/bin/gdb
 /opt/cross/bin/gdb-add-index
 /opt/cross/bin/gdbserver
+/opt/cross/bin/gstack
 %else
 /opt/cross/bin/%{crosstarget}-gdb
 /opt/cross/bin/%{crosstarget}-gdb-add-index
+/opt/cross/bin/%{crosstarget}-gstack
 %endif
 
 %if "%{ctarch}" == "aarch64-meego-linux-gnu__aarch64" || "%{ctarch}" == "i486-meego-linux-gnu__i386" || "%{ctarch}" == "x86_64-meego-linux-gnu__x86_64"

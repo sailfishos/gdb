@@ -1,0 +1,135 @@
+From bc6925b06dce91529b94d7c288b63ed488ed76df Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Matti=20Lehtim=C3=A4ki?= <matti.lehtimaki@jolla.com>
+Date: Mon, 17 Nov 2025 19:41:43 +0200
+Subject: [PATCH] Adjust rpm suggestion script for Sailfish OS
+
+Use zypper instead of dnf and print each suggestion separately with
+filename to match the way old patches worked.
+---
+ gdb/python/lib/gdb/command/rpm-suggestions.py | 43 ++++++++++---------
+ 1 file changed, 22 insertions(+), 21 deletions(-)
+
+diff --git a/gdb/python/lib/gdb/command/rpm-suggestions.py b/gdb/python/lib/gdb/command/rpm-suggestions.py
+index 9aef76303c1..f585adbaf29 100644
+--- a/gdb/python/lib/gdb/command/rpm-suggestions.py
++++ b/gdb/python/lib/gdb/command/rpm-suggestions.py
+@@ -122,22 +122,23 @@ else:
+             __suggest_build_ids[build_id] = True
+             __missing_build_ids[build_id] = True
+ 
+-    # Return true if '/usr/lib' is in the debug-file-directory list.
+-    # System packages install their debug information into /usr/lib,
++    # Return true if '/usr/lib' or '/home/.system/usr/lib' is in
++    # the debug-file-directory list. System packages install their
++    # debug information into /usr/lib or /home/.system/usr/lib,
+     # so if GDB isn't looking in that directory, then there's no
+     # reason to try and figure out a suitable RPM to install.
+     def using_suitable_debug_file_directory():
+         debug_file_directories = gdb.parameter("debug-file-directory")
+         for d in debug_file_directories.split(os.pathsep):
+-            if d[:8] == "/usr/lib":
++            if d[:8] == "/usr/lib" or d[:21] == "/home/.system/usr/lib":
+                 return True
+         return False
+ 
+     # Return True if rpm-suggestion is disabled for any reason.
+     def rpm_suggestion_is_disabled():
+-        # If /usr/lib/ is not being used to find debug information
+-        # then there's no point offering any RPMs as GDB would not
+-        # find the newly installed content.
++        # If /usr/lib/ or /home/.system/usr/lib is not being used to
++        # find debug information then there's no point offering any RPMs
++        # as GDB would not find the newly installed content.
+         if not using_suitable_debug_file_directory():
+             return True
+ 
+@@ -170,7 +171,9 @@ else:
+             if is_rpm_installed(ts, rpm_name):
+                 continue
+ 
+-            add_rpm_suggestion(rpm_name)
++            print("Missing separate debuginfo for " + filename)
++            print("Try: zypper install " + rpm_name)
++            #add_rpm_suggestion(rpm_name)
+ 
+ 
+     # Return a string which is the filename of the filename
+@@ -193,11 +196,11 @@ else:
+ 
+         return filename
+ 
+-    # A regexp object used to match against the output of `dnf`.  This
++    # A regexp object used to match against the output of `zypper`.  This
+     # is initialised the first time it is needed.
+     find_objfile_suggestions_re = None
+ 
+-    # Given BUILD_ID, a string containing a build-id, run a `dnf`
++    # Given BUILD_ID, a string containing a build-id, run a `zypper`
+     # command to figure out if any RPMs can provide a file with that
+     # build-id.
+     #
+@@ -211,9 +214,9 @@ else:
+         global find_objfile_suggestions_re
+ 
+         if find_objfile_suggestions_re is None:
+-            find_objfile_suggestions_re = re.compile("^(.*)-debuginfo-(.*) : Debug information for package (.*)$")
++            find_objfile_suggestions_re = re.compile("^.* \| (.*)-debuginfo \| Debug information for package (.*) \| package$")
+ 
+-        result = subprocess.run(['dnf', "--enablerepo=*debug*", '--nogpgcheck', '-C', 'provides',
++        result = subprocess.run(['zypper', '--no-gpg-checks', '--no-refresh', 'wp',
+                                  build_id_to_usr_lib_filename(build_id, True)],
+                                 capture_output=True, timeout=30)
+ 
+@@ -224,11 +227,11 @@ else:
+             m = find_objfile_suggestions_re.match(l)
+             if not m:
+                 continue
+-            if m.group(1) != m.group(3):
++            if m.group(1) != m.group(2):
+                 return
+ 
+-            main_rpm = m.group(1) + '-' + m.group(2)
+-            dbg_rpm = m.group(1) + '-debuginfo-' + m.group(2)
++            main_rpm = m.group(1)
++            dbg_rpm = m.group(1) + '-debuginfo'
+ 
+             if not is_rpm_installed(ts, main_rpm):
+                 add_rpm_suggestion(main_rpm)
+@@ -351,7 +354,7 @@ else:
+     # Take a non-empty list of RPM names and print a command line a
+     # user could run to install these RPMs.
+     def print_rpm_suggestions(rpm_name_list):
+-        print("Missing rpms, try: dnf --enablerepo='*debug*' install " + ' '.join(rpm_name_list))
++        print("Missing rpms, try: zypper install " + ' '.join(rpm_name_list))
+ 
+     # Take a non-empty list of build-id strings and print a series of
+     # lines that a user could run to instll the RPMs that provide
+@@ -361,21 +364,19 @@ else:
+     # packages for the executable with the given build-id.
+     def print_build_id_suggestions(build_id_list):
+         for build_id in build_id_list:
+-            print("Missing file(s), try: dnf --enablerepo='*debug*' install "
+-                  + build_id_to_usr_lib_filename(build_id, False)
+-                  + ' '
+-                  + build_id_to_usr_lib_filename(build_id, True, ".debug"))
++            print("Missing file(s), try: zypper install "
++                  + '-C \"debuginfo(build-id)='+ build_id + '\"')
+ 
+     # Called before GDB displays its prompt.  If the global __SUGGEST_RPMS
+     # dictionary is not empty, then this hook prints the keys of this
+     # dictionary as strings which are the names of RPMs.  This hook formats
+-    # each RPM name into a suggested 'dnf install' command and suggests this
++    # each RPM name into a suggested 'zypper install' command and suggests this
+     # to the user.
+     #
+     # Additionally, if the global __SUGGEST_BUILD_IDS dictionary is not
+     # empty, then this hook uses the keys of this dictionary as build-ids
+     # that were found to be missing, and formats these into some file based
+-    # 'dnf install' suggestions to the user.
++    # 'zypper install' suggestions to the user.
+     def before_prompt():
+         global __suggest_rpms
+         global __suggest_build_ids
+-- 
+2.34.1
+
