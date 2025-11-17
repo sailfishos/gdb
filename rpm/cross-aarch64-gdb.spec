@@ -1,5 +1,3 @@
-%global     __python %{__python3}
-
 %global     ctarch %{crosstarget}__%{_arch}
 
 Name: cross-aarch64-gdb
@@ -13,10 +11,9 @@ Summary:    A GNU source-level debugger for C, C++, Java and other languages
 Version:    12.1.0
 Release:    1
 License:    GPLv3+
-URL:        http://gnu.org/software/gdb/
+URL:        https://github.com/sailfishos/gdb
 Source0:    %{name}-%{version}.tar.bz2
 Source1:    gdb-rpmlintrc
-Source2:    precheckin.sh
 
 # New locating of the matching binaries from the pure core file (build-id).
 Patch1: gdb-6.6-buildid-locate.patch
@@ -28,16 +25,16 @@ Patch4: gdb-6.6-buildid-locate-rpm-librpm-workaround.patch
 Patch5: gdb-6.6-buildid-locate-rpm-suse.patch
 Patch6: system-gdbinit-missing-parentheses.patch
 
-BuildRequires:  pkgconfig(ncurses)
-BuildRequires:  texinfo
-BuildRequires:  gettext
-BuildRequires:  flex
 BuildRequires:  bison
-BuildRequires:  expat-devel
-BuildRequires:  gmp-devel
-BuildRequires:  python3-devel
+BuildRequires:  flex
+BuildRequires:  gettext
 BuildRequires:  libstdc++
-BuildRequires:  zlib-devel
+BuildRequires:  texinfo
+BuildRequires:  pkgconfig(expat)
+BuildRequires:  pkgconfig(gmp)
+BuildRequires:  pkgconfig(ncurses)
+BuildRequires:  pkgconfig(python3)
+BuildRequires:  pkgconfig(zlib)
 Requires:       python3-base
 
 %description
@@ -56,7 +53,7 @@ and printing their data.
 %patch6 -p1
 
 cat > gdb/version.in << _FOO
-Mer (%{version})
+Sailfish OS (%{version})
 _FOO
 
 # Remove the info and other generated files added by the FSF release
@@ -94,7 +91,7 @@ export CFLAGS="$RPM_OPT_FLAGS"
     --disable-rpath                                         \
     --with-expat                                            \
     --enable-tui                                            \
-    --with-python=%{__python}                               \
+    --with-python=%{__python3}                              \
     --without-libunwind                                     \
     --enable-64-bit-bfd                                     \
     --enable-static                                         \
@@ -109,8 +106,8 @@ export CFLAGS="$RPM_OPT_FLAGS"
     --disable-gprofng                                       \
     %{_target_platform}
 
-make %{?_smp_mflags}
-make %{?_smp_mflags} info
+%make_build
+%make_build info
 
 
 %install
@@ -137,18 +134,6 @@ rm -r "%{buildroot}%{_mandir}/"
 %if "%{?crosstarget}" == ""
 #### NON-CROSS PACS
 
-%files
-%defattr(-,root,root,-)
-%license COPYING COPYING.LIB
-%{_bindir}/gcore
-%{_bindir}/gdb
-%{_bindir}/gdb-add-index
-%{_datadir}/gdb
-%if "%{_arch}" == "aarch64"
-%{_libdir}/libinproctrace.so
-%endif
-
-
 %package gdbserver
 Summary:    A standalone server for GDB (the GNU source-level debugger)
 %ifarch %{ix86} x86_64
@@ -164,19 +149,6 @@ and printing their data.
 This package provides a program that allows you to run GDB on a different
 machine than the one which is running the program being debugged.
 
-%ifarch %{ix86} x86_64
-%post gdbserver -p /sbin/ldconfig
-%postun gdbserver -p /sbin/ldconfig
-%endif
-
-%files gdbserver
-%defattr(-,root,root,-)
-%{_bindir}/gdbserver
-%ifarch %{ix86} x86_64
-%{_libdir}/libinproctrace.so
-%endif
-
-
 %package doc
 Summary:   Documentation for %{name}
 Requires:  %{name} = %{version}-%{release}
@@ -185,6 +157,11 @@ Requires(postun): /sbin/install-info
 
 %description doc
 Man and info pages for %{name}.
+
+%ifarch %{ix86} x86_64
+%post gdbserver -p /sbin/ldconfig
+%postun gdbserver -p /sbin/ldconfig
+%endif
 
 %post doc
 %install_info --info-dir=%{_infodir} %{_infodir}/annotate.info.gz
@@ -201,8 +178,24 @@ then
     %install_info_delete --info-dir=%{_infodir} %{_infodir}/stabs.info.gz
 fi
 
+
+%files
+%license COPYING3 COPYING3.LIB
+%{_bindir}/gcore
+%{_bindir}/gdb
+%{_bindir}/gdb-add-index
+%{_datadir}/gdb
+%if "%{_arch}" == "aarch64"
+%{_libdir}/libinproctrace.so
+%endif
+
+%files gdbserver
+%{_bindir}/gdbserver
+%ifarch %{ix86} x86_64
+%{_libdir}/libinproctrace.so
+%endif
+
 %files doc
-%defattr(-,root,root,-)
 %{_mandir}/*/gdb.1*
 %{_mandir}/*/gdbserver.1*
 %{_mandir}/man1/gcore.1.gz
@@ -214,11 +207,11 @@ fi
 %{_docdir}/%{name}-%{version}
 
 
-%else # crosstarget
+%else
+# crosstarget
 #### CROSS PACS
 
 %files
-%defattr(-,root,root,-)
 /opt/cross/share/%{crosstarget}-gdb
 %if "%{ctarch}" == "aarch64-meego-linux-gnu__aarch64" || "%{ctarch}" == "i486-meego-linux-gnu__i386" || "%{ctarch}" == "armv7hl-meego-linux-gnueabi__arm" || "%{ctarch}" == "x86_64-meego-linux-gnu__x86_64"
 /opt/cross/bin/gcore
@@ -234,4 +227,5 @@ fi
 /opt/cross/%{_lib}/libinproctrace.so
 %endif
 
-%endif # crosstarget
+# crosstarget
+%endif

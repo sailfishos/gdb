@@ -21,5 +21,5 @@ for i in ${ARCHES} ; do
     else
 	CROSSTARGET=${i}-${VENDOR}-linux-gnu
     fi
-    cat ./${SPECNAME} | sed -e "s#Name: .*#Name: cross-${i}-${NAME}\n%define crosstarget ${CROSSTARGET}#" > ./cross-${i}-${NAME}.spec
+    cat ./rpm/${SPECNAME} | sed -e "s#Name: .*#Name: cross-${i}-${NAME}\n%define crosstarget ${CROSSTARGET}#" > ./rpm/cross-${i}-${NAME}.spec
 done
