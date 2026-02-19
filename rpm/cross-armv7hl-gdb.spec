@@ -46,6 +46,7 @@ BuildRequires:  libstdc++
 BuildRequires:  texinfo
 BuildRequires:  pkgconfig(expat)
 BuildRequires:  pkgconfig(gmp)
+BuildRequires:  pkgconfig(liblzma)
 BuildRequires:  pkgconfig(mpfr)
 BuildRequires:  pkgconfig(ncurses)
 BuildRequires:  pkgconfig(python3)
@@ -100,6 +101,7 @@ export CFLAGS="$RPM_OPT_FLAGS"
     --with-separate-debug-dir=/usr/lib/debug                \
     --disable-rpath                                         \
     --with-expat                                            \
+    --with-lzma                                             \
     --enable-tui                                            \
     --with-python=%{__python3}                              \
     --without-libunwind                                     \
